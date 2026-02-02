@@ -1,0 +1,240 @@
+/* Toast Container */
+.notification-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+/* Toast Item */
+.notification-toast {
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  background: #2d2d2d;
+  border-radius: var(--notify-border-radius, 6px);
+  box-shadow: var(--notify-shadow, 0 4px 16px rgba(0, 0, 0, 0.4));
+  display: flex;
+  align-items: flex-start;
+  padding: 16px;
+  gap: 12px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: translateX(100%);
+  border-left: 4px solid var(--notify-color-info, #007acc);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animation states */
+.notification-toast-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification-toast-hidden {
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+/* Hover effect */
+.notification-toast:hover {
+  box-shadow: var(--notify-shadow, 0 6px 20px rgba(0, 0, 0, 0.5));
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* Theme-specific animations */
+.notification-toast-theme-vscode {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification-toast-theme-slack {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.notification-toast-theme-material {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification-toast-theme-minimal {
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(10px);
+  background: rgba(45, 45, 45, 0.95);
+}
+
+/* Type-specific colors (use CSS variables) */
+.notification-toast-info {
+  border-left-color: var(--notify-color-info);
+}
+
+.notification-toast-success {
+  border-left-color: var(--notify-color-success);
+}
+
+.notification-toast-warning {
+  border-left-color: var(--notify-color-warning);
+}
+
+.notification-toast-error {
+  border-left-color: var(--notify-color-error);
+}
+
+/* Icon */
+.notification-toast-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.notification-toast:hover .notification-toast-icon {
+  transform: scale(1.1);
+}
+
+/* Icon background for Material theme */
+.notification-toast-theme-material .notification-toast-icon {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Icon for Minimal theme */
+.notification-toast-theme-minimal .notification-toast-icon {
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Content */
+.notification-toast-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notification-toast-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-toast-session {
+  font-size: 0.7rem;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notification-toast-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e8e8e8;
+  line-height: 1.3;
+}
+
+.notification-toast-body {
+  font-size: 0.85rem;
+  color: #bbb;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* Close button */
+.notification-toast-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.notification-toast-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* Progress indicator when paused */
+.notification-toast-progress-paused {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .notification-toast-container {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+  }
+  
+  .notification-toast {
+    width: 100%;
+  }
+}

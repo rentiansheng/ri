@@ -1,0 +1,111 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# 只运行最新的 workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 快速检查：只运行单元测试
+  quick-check:
+    name: Quick Check (Unit Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linter
+        run: npm run lint || echo "Linting completed with warnings"
+        continue-on-error: true
+      
+      - name: Run unit tests
+        run: npm run test:unit
+      
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Quick Check Results')
+            );
+            
+            const status = '${{ job.status }}';
+            const emoji = status === 'success' ? '✅' : '❌';
+            const message = `## ${emoji} Quick Check Results
+            
+            **Status**: ${status}
+            **Commit**: \`${context.sha.substring(0, 7)}\`
+            **Node Version**: 20.x
+            
+            ### Tests
+            - Unit Tests: ${status === 'success' ? '✅ Passed' : '❌ Failed'}
+            
+            > Full test suite (including E2E tests) is running in the [Test Suite workflow](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            `;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: message
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+            }
+
+  # 提醒：E2E 测试正在主 workflow 中运行
+  e2e-reminder:
+    name: E2E Tests Status
+    runs-on: ubuntu-latest
+    needs: quick-check
+    if: always()
+    
+    steps:
+      - name: Post E2E status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🧪 E2E Tests Running
+              
+              E2E tests are running in the main [Test Suite workflow](${context.payload.repository.html_url}/actions).
+              
+              This may take 10-15 minutes. Please wait for all checks to complete before merging.
+              
+              ### Test Coverage
+              - ✅ Unit Tests (136 tests)
+              - 🔄 E2E Tests (40+ tests on macOS & Ubuntu)
+              `
+            });

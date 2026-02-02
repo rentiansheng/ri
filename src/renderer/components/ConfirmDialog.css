@@ -1,0 +1,125 @@
+.confirm-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confirm-dialog {
+  background-color: var(--bg-secondary, #2a2a2a);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  min-width: 400px;
+  max-width: 500px;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.confirm-dialog-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-color, #3a3a3a);
+}
+
+.confirm-dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.confirm-dialog-body {
+  padding: 20px 24px;
+}
+
+.confirm-dialog-body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary, #b0b0b0);
+}
+
+.confirm-dialog-footer {
+  padding: 16px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.confirm-dialog-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.confirm-dialog-btn:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.confirm-dialog-btn-cancel {
+  background-color: transparent;
+  color: var(--text-secondary, #b0b0b0);
+  border: 1px solid var(--border-color, #3a3a3a);
+}
+
+.confirm-dialog-btn-cancel:hover {
+  background-color: var(--bg-hover, #3a3a3a);
+  color: var(--text-primary, #ffffff);
+}
+
+.confirm-dialog-btn-primary {
+  background-color: var(--primary-color, #4a9eff);
+  color: #ffffff;
+}
+
+.confirm-dialog-btn-primary:hover {
+  background-color: var(--primary-hover, #3a8eef);
+}
+
+.confirm-dialog-btn-danger {
+  background-color: #f48771;
+  color: #ffffff;
+}
+
+.confirm-dialog-btn-danger:hover {
+  background-color: #e67761;
+}
+
+.confirm-dialog-btn-warning {
+  background-color: #f5a742;
+  color: #ffffff;
+}
+
+.confirm-dialog-btn-warning:hover {
+  background-color: #e59732;
+}

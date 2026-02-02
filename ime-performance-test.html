@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>IME Performance Test</title>
+  <style>
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      padding: 20px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+    #input {
+      width: 500px;
+      font-size: 18px;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    #output {
+      background: #2d2d2d;
+      padding: 10px;
+      min-height: 100px;
+      margin-bottom: 20px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    #metrics {
+      background: #2d2d2d;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .metric {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>IME Performance Test</h1>
+  <p>请在下方输入框使用输入法输入中文，然后按空格确认。</p>
+  
+  <input type="text" id="input" placeholder="在此输入中文...">
+  
+  <div id="output">输出将显示在此处</div>
+  
+  <div id="metrics">
+    <div class="metric">compositionstart: <span id="t-start">-</span></div>
+    <div class="metric">compositionend: <span id="t-end">-</span></div>
+    <div class="metric">input事件: <span id="t-input">-</span></div>
+    <div class="metric">DOM更新: <span id="t-dom">-</span></div>
+    <div class="metric">总延迟 (compositionend -> DOM可见): <span id="t-total">-</span>ms</div>
+  </div>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    
+    let tStart = 0;
+    let tEnd = 0;
+    let tInput = 0;
+    let tDom = 0;
+
+    input.addEventListener('compositionstart', () => {
+      tStart = performance.now();
+      document.getElementById('t-start').textContent = tStart.toFixed(2) + 'ms';
+    });
+
+    input.addEventListener('compositionend', (e) => {
+      tEnd = performance.now();
+      document.getElementById('t-end').textContent = tEnd.toFixed(2) + 'ms';
+      
+      // 立即更新 DOM
+      const text = e.data || input.value;
+      output.textContent += text;
+      
+      // 测量 DOM 更新完成时间
+      requestAnimationFrame(() => {
+        tDom = performance.now();
+        document.getElementById('t-dom').textContent = tDom.toFixed(2) + 'ms';
+        
+        const totalDelay = tDom - tEnd;
+        document.getElementById('t-total').textContent = totalDelay.toFixed(2) + 'ms';
+        
+        console.log('IME Performance:', {
+          compositionDuration: tEnd - tStart,
+          renderDelay: tDom - tEnd,
+          totalDelay: totalDelay
+        });
+      });
+    });
+
+    input.addEventListener('input', (e) => {
+      tInput = performance.now();
+      document.getElementById('t-input').textContent = tInput.toFixed(2) + 'ms';
+    });
+  </script>
+</body>
+</html>

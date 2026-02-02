@@ -1,0 +1,457 @@
+/* Settings View Container */
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%; /* 改为 min-height，允许内容扩展 */
+  height: 100%;
+  background: #1e1e1e;
+  overflow: visible; /* 改为 visible，让子元素处理滚动 */
+  width: 100%;
+}
+
+/* Settings Header */
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #252526;
+  border-bottom: 1px solid #3e3e3e;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #d4d4d4;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.settings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Settings Body - contains sidebar and content */
+.settings-body {
+  display: flex;
+  flex: 1;
+  overflow: visible; /* 改为 visible，让内容区域自行处理滚动 */
+  min-height: 0; /* 确保 flex 子元素可以正确收缩 */
+}
+
+/* Settings Sidebar */
+.settings-sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: #252526;
+  border-right: 1px solid #3e3e3e;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #cccccc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.settings-nav-item:hover {
+  background: #2a2d2e;
+  color: #ffffff;
+}
+
+.settings-nav-item.active {
+  background: #37373d;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.settings-nav-icon {
+  font-size: 1.2rem;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-nav-label {
+  flex: 1;
+}
+
+/* Settings Content */
+.settings-content {
+  flex: 1;
+  overflow-y: auto; /* 保持垂直滚动 */
+  overflow-x: hidden;
+  background: #1e1e1e;
+  padding: 24px;
+  height: 100%; /* 明确高度，确保滚动区域正确 */
+  position: relative; /* 确保定位上下文 */
+}
+
+/* Custom scrollbar */
+.settings-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: #3e3e3e;
+  border-radius: 5px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+/* Settings Message - now in ViewHeader */
+.settings-message {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  animation: slideInRight 0.3s ease-out;
+  margin-right: 8px;
+}
+
+.settings-message-success {
+  background: rgba(78, 201, 176, 0.15);
+  color: #4ec9b0;
+  border: 1px solid #4ec9b0;
+}
+
+.settings-message-error {
+  background: rgba(244, 135, 113, 0.15);
+  color: #f48771;
+  border: 1px solid #f48771;
+}
+
+/* Settings Section Content */
+.settings-section-content {
+  /* No padding here, it's applied to settings-content */
+}
+
+/* Settings Group */
+.settings-group {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.settings-group:last-child {
+  border-bottom: none;
+}
+
+.settings-group h3 {
+  margin: 0 0 20px 0;
+  font-size: 1rem;
+  color: #e8e8e8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.85rem;
+}
+
+/* Settings Item */
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  gap: 20px;
+}
+
+.settings-item-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-item-label label {
+  display: block;
+  font-size: 0.9rem;
+  color: #e8e8e8;
+  font-weight: 500;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.settings-item-description {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+  line-height: 1.4;
+}
+
+.settings-item-control {
+  flex-shrink: 0;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #555;
+  border-radius: 13px;
+  transition: all 0.2s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #007acc;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(22px);
+}
+
+/* Input Fields */
+.settings-input,
+.settings-input-number {
+  width: 100%;
+  padding: 8px 12px;
+  background: #2d2d2d;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #e8e8e8;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.settings-input:focus,
+.settings-input-number:focus {
+  outline: none;
+  border-color: #007acc;
+  background: #37373d;
+}
+
+.settings-input-number {
+  width: 100px;
+  text-align: center;
+}
+
+.settings-input-group {
+  margin-bottom: 16px;
+}
+
+.settings-input-group label {
+  display: block;
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+/* Theme Selector */
+.theme-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.theme-card {
+  background: #2d2d2d;
+  border: 2px solid #3e3e3e;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.theme-card:hover {
+  border-color: #555;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-card.selected {
+  border-color: #007acc;
+  background: #37373d;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.theme-preview {
+  margin-bottom: 12px;
+}
+
+.theme-preview-bar {
+  height: 60px;
+  border-radius: 6px;
+  transition: transform 0.2s ease;
+}
+
+.theme-card:hover .theme-preview-bar {
+  transform: scale(1.05);
+}
+
+.theme-name {
+  font-size: 0.875rem;
+  color: #e8e8e8;
+  font-weight: 500;
+}
+
+/* Settings Subsection */
+.settings-subsection {
+  background: #252526;
+  border: 1px solid #3e3e3e;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #3e3e3e;
+  margin-bottom: 16px;
+}
+
+.settings-subsection-content {
+  padding-top: 8px;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .settings-sidebar {
+    width: 60px;
+    min-width: 60px;
+  }
+  
+  .settings-nav-label {
+    display: none;
+  }
+  
+  .theme-selector {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}
+
+/* Settings Buttons */
+.settings-btn-primary,
+.settings-btn-secondary,
+.settings-btn-test {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+  white-space: nowrap;
+}
+
+.settings-btn-primary {
+  background: #007acc;
+  color: white;
+}
+
+.settings-btn-primary:hover:not(:disabled) {
+  background: #005a9e;
+}
+
+.settings-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-btn-secondary {
+  background: transparent;
+  color: #cccccc;
+  border: 1px solid #555;
+}
+
+.settings-btn-secondary:hover:not(:disabled) {
+  background: #37373d;
+  border-color: #666;
+}
+
+.settings-btn-test {
+  background: #4ec9b0;
+  color: #1e1e1e;
+  font-weight: 600;
+  margin-top: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.settings-btn-test:hover {
+  background: #5dd4bd;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .theme-selector {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}

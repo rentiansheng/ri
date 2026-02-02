@@ -1,0 +1,109 @@
+.history-tab-bar {
+  height: 36px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.history-tab-bar-scroll {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 2px;
+  padding: 0 4px;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #555 #2d2d2d;
+}
+
+.history-tab-bar-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.history-tab-bar-scroll::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.history-tab-bar-scroll::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.history-tab-bar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+.history-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #252526;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-size: 0.85rem;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.history-tab-item:hover {
+  background: #2a2d2e;
+  border-color: #3e3e3e;
+}
+
+.history-tab-item.active {
+  background: #1e1e1e;
+  border-color: #007acc;
+  border-bottom-color: #1e1e1e;
+}
+
+.history-tab-prefix {
+  color: #4ec9b0;
+  font-weight: 600;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.history-tab-name {
+  color: #d4d4d4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.history-tab-item.active .history-tab-name {
+  color: #fff;
+}
+
+.history-tab-close-btn {
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: none;
+  color: #858585;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.history-tab-item:hover .history-tab-close-btn {
+  opacity: 1;
+}
+
+.history-tab-close-btn:hover {
+  background: #505050;
+  color: #f48771;
+}

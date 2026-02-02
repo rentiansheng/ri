@@ -1,0 +1,76 @@
+.confirm-context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: #2d2d2d;
+  border: 1px solid #454545;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  padding: 12px;
+  min-width: 280px;
+  max-width: 320px;
+  animation: contextMenuFadeIn 0.15s ease-out;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.confirm-context-menu-message {
+  font-size: 0.875rem;
+  color: #d4d4d4;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+
+.confirm-context-menu-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirm-context-menu-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.confirm-context-menu-btn:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+.confirm-context-menu-btn-cancel {
+  background: transparent;
+  color: #cccccc;
+  border: 1px solid #555;
+}
+
+.confirm-context-menu-btn-cancel:hover {
+  background: #3a3a3a;
+  border-color: #666;
+}
+
+.confirm-context-menu-btn-confirm {
+  background: #f48771;
+  color: #ffffff;
+}
+
+.confirm-context-menu-btn-confirm:hover {
+  background: #e67761;
+}
+
+.confirm-context-menu-btn-confirm:active {
+  background: #d66751;
+}
