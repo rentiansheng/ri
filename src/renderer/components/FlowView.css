@@ -1,0 +1,76 @@
+.flow-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1e1e1e;
+  width: 100%;
+}
+
+.flow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #252526;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.flow-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #d4d4d4;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.flow-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.flow-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.flow-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.flow-placeholder h4 {
+  font-size: 1.1rem;
+  color: #d4d4d4;
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+
+.flow-placeholder p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.flow-hint {
+  font-style: italic;
+  color: #888;
+  margin-top: 1rem;
+}

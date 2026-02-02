@@ -1,0 +1,254 @@
+.app {
+  display: flex;
+  height: 100vh;
+  background: #1e1e1e;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left: Icon Sidebar (48px, always visible) */
+.app-sidebar-icons {
+  width: 48px;
+  min-width: 48px;
+  background: #2d2d2d;
+  border-right: 1px solid #3e3e3e;
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+}
+
+/* Left: Navigation Panel (250px, collapsible) */
+.app-navigation {
+  width: 250px;
+  min-width: 250px;
+  background: #252526;
+  border-right: 1px solid #3e3e3e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.3s ease, width 0.3s ease, min-width 0.3s ease;
+  z-index: 20;
+}
+
+.app-navigation.collapsed {
+  width: 0;
+  min-width: 0;
+  transform: translateX(-250px);
+  border-right: none;
+}
+
+/* Navigation toggle button */
+.navigation-toggle {
+  position: absolute;
+  left: 298px; /* 48px (icons) + 250px (navigation) */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  background: #2d2d2d;
+  border: 1px solid #3e3e3e;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 0.3s ease, background 0.2s ease;
+}
+
+.app-navigation.collapsed + .navigation-toggle {
+  left: 48px; /* Only icons visible */
+}
+
+.navigation-toggle:hover {
+  background: #37373d;
+  color: #d4d4d4;
+}
+
+/* Right: Main content area */
+.app-main {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+}
+
+/* Main content area wrapper */
+.main-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tab bar wrapper - contains TabBar and New Session button */
+.tab-bar-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: #252526;
+  border-bottom: 1px solid #1e1e1e;
+  height: 35px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* New Session button */
+.new-session-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #007acc;
+  color: white;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+  padding: 0;
+}
+
+.new-session-btn:hover {
+  background: #0098ff;
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.4);
+}
+
+.new-session-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.new-session-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+}
+
+/* Welcome screen header with title and button */
+.welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px 40px 20px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #3e3e3e;
+  flex-shrink: 0;
+  position: relative;
+  min-height: 80px;
+}
+
+.welcome-header h2 {
+  font-size: 2rem;
+  color: #d4d4d4;
+  margin: 0;
+  font-weight: 400;
+}
+
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.welcome h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #d4d4d4;
+}
+
+.welcome p {
+  font-size: 1.1rem;
+  color: #888;
+  margin: 0.5rem 0;
+}
+
+.welcome-hint {
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+}
+
+/* Terminal area */
+.terminal-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Terminals wrapper - contains all terminal instances */
+.terminals-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.terminals-wrapper.hidden {
+  display: none;
+}
+
+.terminal-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.terminal-container .xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.terminal-container .xterm .xterm-viewport {
+  width: 100% !important;
+}
+
+.terminal-container .xterm .xterm-screen {
+  width: 100% !important;
+}
+
+/* History area (full width when active) */
+.history-area {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+/* Settings area (full width when active) */
+.settings-area {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: #1e1e1e;
+  overflow: hidden;
+}

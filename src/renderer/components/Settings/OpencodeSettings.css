@@ -1,0 +1,387 @@
+/* OpenCode Settings Container */
+.opencode-settings {
+  padding: 1.5rem;
+  max-width: 900px;
+}
+
+/* Section */
+.opencode-section {
+  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.opencode-section h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Configuration Form */
+.opencode-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.opencode-form-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.opencode-form-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.opencode-form-label label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.opencode-form-description {
+  font-size: 0.85rem;
+  color: #888;
+  line-height: 1.4;
+}
+
+.opencode-form-control {
+  margin-left: 2rem;
+}
+
+.opencode-input-number {
+  width: 80px;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.opencode-input-number:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.opencode-select {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.opencode-select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.opencode-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.opencode-btn-save {
+  padding: 0.75rem 2rem;
+  background: #4a9eff;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-btn-save:hover:not(:disabled) {
+  background: #3a8eef;
+  transform: translateY(-1px);
+}
+
+.opencode-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Status Grid */
+.opencode-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.opencode-status-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.opencode-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.opencode-status-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.opencode-status-indicator {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.opencode-status-indicator.running {
+  color: #4caf50;
+}
+
+.opencode-status-indicator.stopped {
+  color: #666;
+}
+
+.opencode-status-details {
+  margin-bottom: 1rem;
+}
+
+.opencode-status-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.opencode-status-label {
+  color: #888;
+  font-weight: 500;
+}
+
+.opencode-status-value {
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+
+.opencode-status-value a {
+  color: #4a9eff;
+  text-decoration: none;
+}
+
+.opencode-status-value a:hover {
+  text-decoration: underline;
+}
+
+.opencode-status-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.opencode-btn-start,
+.opencode-btn-stop {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-btn-start {
+  background: #4caf50;
+  color: #fff;
+}
+
+.opencode-btn-start:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+}
+
+.opencode-btn-stop {
+  background: #f44336;
+  color: #fff;
+}
+
+.opencode-btn-stop:hover {
+  background: #da190b;
+  transform: translateY(-1px);
+}
+
+.opencode-stop-all {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.opencode-btn-stop-all {
+  padding: 0.75rem 2rem;
+  background: #ff6b6b;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-btn-stop-all:hover {
+  background: #ff5252;
+  transform: translateY(-1px);
+}
+
+.opencode-error-message {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 6px;
+  color: #ff6b6b;
+  font-size: 0.9rem;
+}
+
+/* Logs Container */
+.opencode-logs-container {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.opencode-logs-empty {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+.opencode-logs-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.opencode-log-entry {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  font-family: 'Courier New', Monaco, monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.opencode-log-entry:last-child {
+  border-bottom: none;
+}
+
+.opencode-log-time {
+  color: #666;
+  white-space: nowrap;
+}
+
+.opencode-log-service {
+  color: #4a9eff;
+  font-weight: 600;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.opencode-log-level {
+  font-weight: 600;
+  min-width: 60px;
+  white-space: nowrap;
+}
+
+.opencode-log-message {
+  color: #ddd;
+  flex: 1;
+  word-break: break-word;
+}
+
+/* Info Section */
+.opencode-info {
+  padding: 1rem;
+  background: rgba(74, 158, 255, 0.1);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.opencode-info p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.opencode-info p:first-child {
+  margin-top: 0;
+}
+
+.opencode-info p:last-child {
+  margin-bottom: 0;
+}
+
+.opencode-info a {
+  color: #4a9eff;
+  text-decoration: none;
+}
+
+.opencode-info a:hover {
+  text-decoration: underline;
+}
+
+.opencode-info code {
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  font-family: 'Courier New', Monaco, monospace;
+  font-size: 0.85rem;
+  color: #4ecdc4;
+}
+
+/* Scrollbar Styling */
+.opencode-logs-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.opencode-logs-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.opencode-logs-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.opencode-logs-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

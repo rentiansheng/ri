@@ -1,0 +1,92 @@
+{
+  "version": "0.1.0",
+  "history": {
+    "logsDirectory": "session-logs",
+    "maxRecordsPerFile": 1000,
+    "retentionDays": 30,
+    "trimDebounceMs": 30000,
+    "autoTrim": true,
+    "enableFiltering": true
+  },
+  "terminal": {
+    "defaultShell": null,
+    "fontSize": 14,
+    "fontFamily": "Menlo, Monaco, \"Courier New\", monospace",
+    "cursorStyle": "block",
+    "cursorBlink": true,
+    "scrollback": 1000,
+    "theme": {
+      "background": "#1e1e1e",
+      "foreground": "#d4d4d4",
+      "cursor": "#ffffff",
+      "selection": "#264f78"
+    }
+  },
+  "window": {
+    "width": 1200,
+    "height": 800,
+    "alwaysOnTop": false,
+    "sidebarCollapsed": false
+  },
+  "ai": {
+    "enabled": false,
+    "provider": null,
+    "apiKey": null,
+    "model": null
+  },
+  "advanced": {
+    "devToolsOnStartup": false,
+    "enablePerformanceMonitoring": false,
+    "logLevel": "info"
+  },
+  "notification": {
+    "enabled": true,
+    "channels": {
+      "system": {
+        "enabled": true
+      },
+      "inApp": {
+        "enabled": true,
+        "toastDuration": 3000
+      },
+      "slack": {
+        "enabled": false,
+        "webhookUrl": "",
+        "channel": "#notifications",
+        "username": "Second Brain OS",
+        "iconEmoji": ":robot_face:"
+      },
+      "discord": {
+        "enabled": false,
+        "webhookUrl": "",
+        "username": "Second Brain OS"
+      },
+      "telegram": {
+        "enabled": false,
+        "botToken": "",
+        "chatId": ""
+      },
+      "dingtalk": {
+        "enabled": false,
+        "webhookUrl": "",
+        "secret": ""
+      },
+      "wecom": {
+        "enabled": false,
+        "webhookUrl": ""
+      }
+    },
+    "rules": {
+      "notifyOnTypes": ["error", "warning", "success", "info"],
+      "maxNotificationsPerSession": 3
+    }
+  },
+  "opencode": {
+    "enabled": false,
+    "startServer": false,
+    "startWeb": false,
+    "startupDelay": 2000,
+    "autoRestart": false,
+    "logLevel": "INFO"
+  }
+}
