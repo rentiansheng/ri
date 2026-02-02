@@ -393,7 +393,7 @@ class TerminalDataBuffer {
     }
     
     // 发送批量数据
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('terminal:data', {
         id: terminalId,
         data: batch.join('')
@@ -427,7 +427,7 @@ ipcMain.handle('terminal:create', (_event, payload) => {
   const term = terminalManager.create(payload || {});
 
   term.pty.onData((data) => {
-    if (!mainWindow) return;
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
     
     // 使用批处理而不是立即发送
     dataBuffer.add(term.id, data);
@@ -437,7 +437,11 @@ ipcMain.handle('terminal:create', (_event, payload) => {
   });
 
   term.pty.onExit(() => {
-    if (!mainWindow) return;
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+      // 即使窗口销毁了，也要清理 PTY 资源
+      terminalManager.dispose(term.id);
+      return;
+    }
     mainWindow.webContents.send('terminal:exit', { id: term.id });
     // Keep this simple: dispose on shell exit.
     terminalManager.dispose(term.id);

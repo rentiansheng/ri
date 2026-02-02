@@ -114,6 +114,8 @@ const Terminal: React.FC<TerminalProps> = ({
   const setSessionNameFromFirstInput = useTerminalStore((state) => state.setSessionNameFromFirstInput);
   const sessions = useTerminalStore((state) => state.sessions);
   
+  const [isReady, setIsReady] = useState(false);
+  
   const UPDATE_THROTTLE = 100;
   
   useEffect(() => {
@@ -130,36 +132,27 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!containerRef.current) return;
     
     if (hasInitializedRef.current) {
-      console.log(`[Terminal ${terminalId}] Already initialized, skipping`);
       return;
     }
 
     console.log(`[Terminal ${terminalId}] Initializing...`);
     hasInitializedRef.current = true;
 
-    // 创建 xterm 实例（简化配置，先保证能工作）
     const xterm = new XTerm({
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 14,
       cursorBlink: true,
       cursorStyle: 'block',
       scrollback: 10000,
-      fastScrollModifier: 'alt',
-      fastScrollSensitivity: 5,
       theme: {
         background: '#1e1e1e',
         foreground: '#d4d4d4',
         cursor: '#ffffff',
-        selection: 'rgba(38, 79, 120, 0.4)',
       },
       rows: 24,
       cols: 80,
-      convertEol: false,
-      disableStdin: false,
-      allowTransparency: false,
     });
 
-    // 加载基础插件
     const fitAddon = new FitAddon();
     const searchAddon = new SearchAddon();
     const webLinksAddon = new WebLinksAddon();
@@ -172,6 +165,9 @@ const Terminal: React.FC<TerminalProps> = ({
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
     writeQueueRef.current = new TerminalWriteQueue(xterm);
+
+    // 标志已准备好
+    setIsReady(true);
 
     // 处理用户输入
     xterm.onData((data) => {
@@ -199,7 +195,7 @@ const Terminal: React.FC<TerminalProps> = ({
     });
 
     // 处理后端数据（使用队列）
-    const unsubscribeData = window.terminal.onData((payload) => {
+    const unsubscribeData = window.terminal.onData((payload: { id: string; data: string }) => {
       if (payload.id === terminalId && writeQueueRef.current) {
         writeQueueRef.current.write(payload.data);
         
@@ -220,7 +216,7 @@ const Terminal: React.FC<TerminalProps> = ({
       }
     });
 
-    const unsubscribeExit = window.terminal.onExit((payload) => {
+    const unsubscribeExit = window.terminal.onExit((payload: { id: string }) => {
       if (payload.id === terminalId) {
         xterm.write('\r\n[Process completed]\r\n');
       }
@@ -232,144 +228,66 @@ const Terminal: React.FC<TerminalProps> = ({
           fitAddonRef.current.fit();
           const { cols, rows } = xtermRef.current;
           window.terminal.resize({ id: terminalId, cols, rows });
-        } catch (e) {
-          // Ignore
-        }
+        } catch (e) {}
       }
     };
 
     window.addEventListener('resize', handleResize);
 
-    // 快捷键
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        e.preventDefault();
-        setSearchVisible(true);
-      }
-      
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        if (xtermRef.current) xtermRef.current.clear();
-      }
-      
-      if (e.key === 'Escape' && searchVisible) {
-        e.preventDefault();
-        setSearchVisible(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    // 右键菜单
-    const handleContextMenu = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) return;
-      
-      e.preventDefault();
-      const hasSelection = xtermRef.current?.hasSelection() || false;
-      setContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        hasSelection,
-      });
-    };
-
-    window.addEventListener('contextmenu', handleContextMenu);
-
-    // 清理
     return () => {
       console.log(`[Terminal ${terminalId}] Cleaning up...`);
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('contextmenu', handleContextMenu);
       unsubscribeData();
       unsubscribeExit();
-      
-      if (writeQueueRef.current) {
-        writeQueueRef.current.dispose();
-      }
-      
-      if (xterm) {
-        xterm.dispose();
-      }
-      
+      if (writeQueueRef.current) writeQueueRef.current.dispose();
+      xterm.dispose();
       clearOutputCache(terminalId);
       hasInitializedRef.current = false;
       hasOpenedRef.current = false;
+      setIsReady(false);
     };
-  }, [terminalId]); // 只依赖 terminalId，避免无限循环
+  }, [terminalId]);
 
   // ============================================================
-  // 处理显示和焦点
+  // 处理显示和焦点 (使用 useEffect 并在 isReady 后执行)
   // ============================================================
-  useLayoutEffect(() => {
-    console.log(`[Terminal ${terminalId}] isActive=${isActive}, isVisible=${isVisible}, hasOpened=${hasOpenedRef.current}`);
-    
-    if (isActive && isVisible && !hasOpenedRef.current && containerRef.current && xtermRef.current && fitAddonRef.current) {
+  useEffect(() => {
+    if (!isReady || !isActive || !isVisible || !containerRef.current || !xtermRef.current) return;
+
+    if (!hasOpenedRef.current) {
       console.log(`[Terminal ${terminalId}] Opening in DOM...`);
-      
-      setTimeout(() => {
-        if (!containerRef.current || !xtermRef.current || !fitAddonRef.current) return;
+      try {
+        xtermRef.current.open(containerRef.current);
+        hasOpenedRef.current = true;
         
-        const rect = containerRef.current.getBoundingClientRect();
-        console.log(`[Terminal ${terminalId}] Container: ${rect.width}x${rect.height}`);
-        
-        if (rect.width === 0 || rect.height === 0) {
-          console.warn(`[Terminal ${terminalId}] No dimensions yet`);
-          return;
-        }
-        
+        // 尝试加载 WebGL
         try {
-          xtermRef.current.open(containerRef.current);
-          hasOpenedRef.current = true;
-          console.log(`[Terminal ${terminalId}] ✅ Opened successfully`);
-          
-          // 尝试 WebGL（可选，失败不影响）
-          try {
-            const webglAddon = new WebglAddon();
-            webglAddon.onContextLoss(() => {
-              webglAddon.dispose();
-            });
-            xtermRef.current.loadAddon(webglAddon);
-            console.log(`[Terminal ${terminalId}] ✅ WebGL enabled`);
-          } catch (e) {
-            console.log(`[Terminal ${terminalId}] Using canvas renderer`);
+          const webglAddon = new WebglAddon();
+          xtermRef.current.loadAddon(webglAddon);
+        } catch (e) {}
+
+        // 初始调整大小
+        setTimeout(() => {
+          if (fitAddonRef.current && xtermRef.current) {
+            fitAddonRef.current.fit();
+            const { cols, rows } = xtermRef.current;
+            window.terminal.resize({ id: terminalId, cols, rows });
+            xtermRef.current.focus();
           }
-          
-          // Fit and focus
-          setTimeout(() => {
-            if (fitAddonRef.current && xtermRef.current) {
-              try {
-                fitAddonRef.current.fit();
-                const { cols, rows } = xtermRef.current;
-                window.terminal.resize({ id: terminalId, cols, rows });
-                xtermRef.current.focus();
-                console.log(`[Terminal ${terminalId}] Fitted: ${cols}x${rows}`);
-              } catch (e) {
-                console.error(`[Terminal ${terminalId}] Fit failed:`, e);
-              }
-            }
-          }, 50);
-        } catch (error) {
-          console.error(`[Terminal ${terminalId}] Open failed:`, error);
-        }
-      }, 100);
-    } else if (isActive && isVisible && hasOpenedRef.current && fitAddonRef.current && xtermRef.current) {
-      const timer = setTimeout(() => {
-        if (!fitAddonRef.current || !xtermRef.current) return;
-        
-        try {
+        }, 100);
+      } catch (error) {
+        console.error(`[Terminal ${terminalId}] Open failed:`, error);
+      }
+    } else {
+      // 已经打开，只需聚焦
+      setTimeout(() => {
+        if (fitAddonRef.current && xtermRef.current) {
           fitAddonRef.current.fit();
-          const { cols, rows } = xtermRef.current;
-          window.terminal.resize({ id: terminalId, cols, rows });
           xtermRef.current.focus();
-        } catch (error) {
-          console.error(`[Terminal ${terminalId}] Refit failed:`, error);
         }
       }, 50);
-      
-      return () => clearTimeout(timer);
     }
-  }, [isActive, isVisible, terminalId]);
+  }, [isReady, isActive, isVisible, terminalId]);
 
   // 搜索功能
   const handleSearch = (term: string, forward: boolean = true) => {

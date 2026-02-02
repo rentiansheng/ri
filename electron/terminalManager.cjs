@@ -70,10 +70,6 @@ class TerminalManager extends EventEmitter {
       };
       
       this._terms.set(id, entry);
-
-      // Auto-inject shell integration
-      this._injectShellIntegration(id);
-
       return entry;
     } catch (error) {
       // If zsh fails, try bash
@@ -96,30 +92,8 @@ class TerminalManager extends EventEmitter {
       };
 
       this._terms.set(id, entry);
-
-      // Auto-inject shell integration
-      this._injectShellIntegration(id);
-
       return entry;
     }
-  }
-
-  /**
-   * Inject shell integration script into the terminal session
-   * This sources the shell-integration.sh file silently
-   */
-  _injectShellIntegration(id) {
-    const scriptPath = path.join(__dirname, 'resources', 'shell-integration.sh');
-    // Using a space before 'source' usually prevents it from being saved to history in zsh/bash
-    // We send a clear command afterwards to keep the terminal clean
-    const cmd = ` source "${scriptPath}"\r`; // clear\r`; 
-    // Note: 'clear' might be too aggressive if the shell startup printed something useful, 
-    // so we just source it. The space prefix helps hide it from history.
-    
-    // Give the shell a tiny moment to initialize before writing
-    setTimeout(() => {
-      this.write(id, cmd);
-    }, 100);
   }
 
   get(id) {
