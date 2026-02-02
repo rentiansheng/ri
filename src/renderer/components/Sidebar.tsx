@@ -13,7 +13,7 @@ interface CategoryTab {
 const CATEGORIES: CategoryTab[] = [
   { id: 'sessions', label: 'Sessions', icon: '⚡' },
   { id: 'history', label: 'History', icon: '📜' },
-  { id: 'flow', label: 'Flow', icon: '⚙️' },
+  { id: 'flow', label: 'Flow', icon: '🛤️' },
   { id: 'notify', label: 'Notify', icon: '🔔' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
 ];

@@ -101,3 +101,9 @@ contextBridge.exposeInMainWorld('opencode', {
     return () => ipcRenderer.removeListener('opencode:log', handler);
   }
 });
+
+contextBridge.exposeInMainWorld('flow', {
+  getLogs: (flowId) => ipcRenderer.invoke('flow:get-logs', flowId),
+  runNow: (flow) => ipcRenderer.invoke('flow:run-now', flow),
+  clearLogs: (flowId) => ipcRenderer.send('flow:clear-logs', flowId),
+});

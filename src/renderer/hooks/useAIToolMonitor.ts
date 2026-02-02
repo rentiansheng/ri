@@ -20,22 +20,27 @@ import { sendNotification } from '../utils/notification';
  * @returns 检测间隔（毫秒）
  */
 function getCheckInterval(session: Session, isFocused: boolean): number {
-  // 有焦点：3秒检测一次（降低频率）
-  if (isFocused) return 3000;
+  const now = Date.now();
+  const timeSinceLastActivity = now - (session.lastActivityTime || session.createdAt);
   
-  const state = session.aiToolState;
+  // 基础间隔 15s
+  const MIN_INTERVAL = 15000;
+  // 最大间隔 120s (2m)
+  const MAX_INTERVAL = 120000;
   
-  // 已阻塞且无焦点：1分钟检测一次
-  if (state?.status === 'waiting') return 60000;
+  // 如果正在等待输入（阻塞状态），保持相对敏感的检测，但也不低于 15s
+  if (session.aiToolState?.status === 'waiting' && isFocused) {
+    return MIN_INTERVAL;
+  }
+
+  // 自适应逻辑：根据最后活动时间增加间隔
+  // 15s (活跃) -> 2m (长久无活动)
+  // 线性增加：每 1 分钟不活动，增加 30s 间隔，直到 2m
+  const idleMinutes = timeSinceLastActivity / 60000;
+  let adaptiveInterval = MIN_INTERVAL + (idleMinutes * 30000);
   
-  // 无焦点时递增策略：10s → 20s → 30s → 60s
-  const timeSinceLastCheck = Date.now() - (state?.lastCheckTime || 0);
-  
-  if (timeSinceLastCheck < 20000) return 10000;  // < 20s: 每 10s 检测
-  if (timeSinceLastCheck < 60000) return 20000;  // < 60s: 每 20s 检测
-  if (timeSinceLastCheck < 120000) return 30000; // < 120s: 每 30s 检测
-  
-  return 60000; // >= 120s: 每 60s 检测
+  // 限制在 15s - 2m 之间
+  return Math.min(Math.max(adaptiveInterval, MIN_INTERVAL), MAX_INTERVAL);
 }
 
 /**

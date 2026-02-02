@@ -27,6 +27,19 @@ export interface SessionLogStats {
   newestRecord: number | null;
 }
 
+export interface Flow {
+  id: string;
+  name: string;
+  path?: string;           // Folder path: "category/subcategory"
+  mode: 'cron' | 'template';
+  commands: string[];
+  cwd?: string;
+  cron?: string;           // Minute-level cron: "*/5 * * * *"
+  enabled: boolean;
+  lastRunTime?: number;
+  lastRunStatus?: 'success' | 'error';
+}
+
 export interface Config {
   version: string;
   history: {
@@ -63,6 +76,7 @@ export interface Config {
     apiKey: string | null;
     model: string | null;
   };
+  flows?: Flow[];
   advanced: {
     devToolsOnStartup: boolean;
     enablePerformanceMonitoring: boolean;
@@ -212,6 +226,12 @@ export interface OpencodeAPI {
   onLog: (callback: (log: OpencodeLogEntry) => void) => () => void;
 }
 
+export interface FlowAPI {
+  getLogs: (flowId: string) => Promise<string>;
+  runNow: (flow: Flow) => Promise<void>;
+  clearLogs: (flowId: string) => void;
+}
+
 declare global {
   interface Window {
     terminal: Terminal;
@@ -219,6 +239,7 @@ declare global {
     config: ConfigAPI;
     notification: NotificationAPI;
     opencode: OpencodeAPI;
+    flow: FlowAPI;
   }
 }
 

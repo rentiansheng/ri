@@ -146,16 +146,75 @@ class SessionLogger {
     
     // Maintain classifier per session
     this.classifiers = new Map();
+
+    // Tier 3 Optimization: Async Memory Buffers
+    this.logBuffers = new Map(); // sessionId -> record[]
+    this.MAX_BUFFER_SIZE = 1000; // Drop records if buffer exceeds this
+    this.FLUSH_INTERVAL_MS = 5000; // Flush to disk every 5s
     
-    console.log('[SessionLogger] Initialized with config:', {
-      logsDir: this.logsDir,
-      maxRecords: this.MAX_RECORDS,
-      retentionDays: this.RETENTION_DAYS,
-      trimDebounceMs: this.TRIM_DEBOUNCE_MS,
-      enableFiltering: this.enableFiltering
-    });
+    // Start periodic flush
+    this.flushTimer = setInterval(() => this.flushAllBuffers(), this.FLUSH_INTERVAL_MS);
+    
+    console.log('[SessionLogger] Initialized with Tier 3 Optimization (Lossy Async Buffering)');
   }
   
+  /**
+   * Flush all session buffers to disk
+   */
+  flushAllBuffers() {
+    for (const sessionId of this.logBuffers.keys()) {
+      this.flushSessionBuffer(sessionId);
+    }
+  }
+
+  /**
+   * Flush specific session buffer to disk asynchronously
+   */
+  async flushSessionBuffer(sessionId) {
+    const buffer = this.logBuffers.get(sessionId);
+    if (!buffer || buffer.length === 0) return;
+
+    this.logBuffers.delete(sessionId);
+    const logFile = this.getLogFilePath(sessionId);
+    
+    // Tier 4: 批量处理分类和 ANSI 清理，将正则运算移出实时路径
+    const classifier = this.enableFiltering ? this.getClassifier(sessionId) : null;
+    const lines = [];
+    
+    for (const record of buffer) {
+      if (this.enableFiltering && classifier) {
+        const { type, shouldLog } = classifier.classify(record.data);
+        if (!shouldLog) continue;
+        
+        const cleaned = classifier.stripBasicAnsi(record.data).trim();
+        if (cleaned.length < 2) continue;
+        
+        lines.push(JSON.stringify({
+          timestamp: record.timestamp,
+          type: type,
+          data: record.data,
+          cleaned: cleaned
+        }) + '\n');
+      } else {
+        lines.push(JSON.stringify({
+          timestamp: record.timestamp,
+          data: record.data
+        }) + '\n');
+      }
+    }
+
+    if (lines.length === 0) return;
+
+    fs.appendFile(logFile, lines.join(''), 'utf8', (err) => {
+      if (err) console.error(`[SessionLogger] Async flush failed for ${sessionId}:`, err);
+    });
+
+    // 更新计数并调度清理
+    const currentCount = this.recordCounts.get(sessionId) || 0;
+    this.recordCounts.set(sessionId, currentCount + lines.length);
+    this.scheduleTrim(sessionId);
+  }
+
   /**
    * Apply configuration changes (hot reload)
    * @param {Object} config - New configuration
@@ -174,6 +233,54 @@ class SessionLogger {
       trimDebounceMs: this.TRIM_DEBOUNCE_MS,
       enableFiltering: this.enableFiltering
     });
+  }
+  
+  /**
+   * Schedule trim operation for a session (debounced)
+   * @param {string} sessionId - Session ID
+   */
+  scheduleTrim(sessionId) {
+    // Clear existing timer if any
+    if (this.trimTimers && this.trimTimers.has(sessionId)) {
+      clearTimeout(this.trimTimers.get(sessionId));
+    }
+    
+    // Initialize trimTimers map if not exists
+    if (!this.trimTimers) {
+      this.trimTimers = new Map();
+    }
+    
+    // Schedule new trim operation
+    const timer = setTimeout(() => {
+      this.trimLogFile(sessionId);
+      this.trimTimers.delete(sessionId);
+    }, this.TRIM_DEBOUNCE_MS || 30000);
+    
+    this.trimTimers.set(sessionId, timer);
+  }
+  
+  /**
+   * Trim log file to max records
+   * @param {string} sessionId - Session ID
+   */
+  trimLogFile(sessionId) {
+    try {
+      const logPath = this.getLogFilePath(sessionId);
+      if (!fs.existsSync(logPath)) return;
+      
+      const content = fs.readFileSync(logPath, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      
+      if (lines.length <= this.MAX_RECORDS) return;
+      
+      // Keep only the most recent MAX_RECORDS
+      const trimmed = lines.slice(-this.MAX_RECORDS);
+      fs.writeFileSync(logPath, trimmed.join('\n') + '\n', 'utf8');
+      
+      console.log(`[SessionLogger] Trimmed ${sessionId} from ${lines.length} to ${trimmed.length} records`);
+    } catch (error) {
+      console.error(`[SessionLogger] Failed to trim ${sessionId}:`, error);
+    }
   }
   
   /**
@@ -205,255 +312,25 @@ class SessionLogger {
    */
   logInteraction(sessionId, data) {
     try {
-      // Check if filtering is enabled
-      if (this.enableFiltering) {
-        // Classify output
-        const classifier = this.getClassifier(sessionId);
-        const { type, shouldLog } = classifier.classify(data);
-        
-        if (!shouldLog) {
-          return;  // Don't log prompts, interactive apps, noise
-        }
-        
-        // Clean data
-        const cleaned = classifier.stripBasicAnsi(data).trim();
-        if (cleaned.length < 2) {
-          return;  // Filter too short content
-        }
-        
-        // Enhanced record format
-        const record = {
-          timestamp: Date.now(),
-          type: type,  // 'command' or 'output'
-          data: data,  // Keep raw data
-          cleaned: cleaned,  // Cleaned text for display
-        };
+      const record = {
+        timestamp: Date.now(),
+        data: data
+      };
 
-        const logFile = this.getLogFilePath(sessionId);
-        const recordLine = JSON.stringify(record) + '\n';
-
-        // Append to file (keep synchronous for data integrity)
-        fs.appendFileSync(logFile, recordLine, 'utf8');
+      // Tier 4: 直接存入原始数据缓冲，不做实时正则分类
+      let buffer = this.logBuffers.get(sessionId) || [];
+      
+      if (buffer.length < this.MAX_BUFFER_SIZE) {
+        buffer.push(record);
+        this.logBuffers.set(sessionId, buffer);
       } else {
-        // Filtering disabled - log everything in simple format
-        const record = {
-          timestamp: Date.now(),
-          data: data,
-        };
-
-        const logFile = this.getLogFilePath(sessionId);
-        const recordLine = JSON.stringify(record) + '\n';
-
-        // Append to file (keep synchronous for data integrity)
-        fs.appendFileSync(logFile, recordLine, 'utf8');
+        // Lossy service: Drop oldest record to make room for new one
+        buffer.shift();
+        buffer.push(record);
+        this.logBuffers.set(sessionId, buffer);
       }
-
-      // Increment count
-      const currentCount = this.recordCounts.get(sessionId) || 0;
-      this.recordCounts.set(sessionId, currentCount + 1);
-
-      // Schedule debounced trim
-      this.scheduleTrim(sessionId);
     } catch (error) {
-      console.error(`[SessionLogger] Failed to log interaction for ${sessionId}:`, error);
-    }
-  }
-
-  /**
-   * Schedule a debounced trim operation
-   * @param {string} sessionId - Session ID
-   */
-  scheduleTrim(sessionId) {
-    // Clear existing timer
-    const existingTimer = this.trimTimers.get(sessionId);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    // Only trim if we think we might be over limit
-    const count = this.recordCounts.get(sessionId) || 0;
-    if (count < this.MAX_RECORDS * 1.2) {
-      // Not near limit, skip trim
-      return;
-    }
-
-    // Schedule new trim
-    const timer = setTimeout(() => {
-      this.trimLogFile(sessionId);
-      this.trimTimers.delete(sessionId);
-    }, this.TRIM_DEBOUNCE_MS);
-
-    this.trimTimers.set(sessionId, timer);
-  }
-
-  /**
-   * Trim log file to keep only MAX_RECORDS most recent records
-   * and remove records older than RETENTION_DAYS
-   * @param {string} sessionId - Session ID
-   */
-  trimLogFile(sessionId) {
-    try {
-      const logFile = this.getLogFilePath(sessionId);
-      
-      if (!fs.existsSync(logFile)) {
-        return;
-      }
-
-      // Read all records
-      const content = fs.readFileSync(logFile, 'utf8');
-      const lines = content.trim().split('\n').filter(line => line.trim());
-      
-      if (lines.length <= this.MAX_RECORDS) {
-        // Check if we need to remove old records
-        const now = Date.now();
-        const filteredLines = lines.filter(line => {
-          try {
-            const record = JSON.parse(line);
-            return (now - record.timestamp) < this.RETENTION_MS;
-          } catch (e) {
-            return false; // Remove invalid records
-          }
-        });
-
-        if (filteredLines.length < lines.length) {
-          // Rewrite file with filtered records
-          fs.writeFileSync(logFile, filteredLines.join('\n') + '\n', 'utf8');
-          // Update count
-          this.recordCounts.set(sessionId, filteredLines.length);
-        }
-        return;
-      }
-
-      // Parse records with timestamps
-      const records = lines
-        .map(line => {
-          try {
-            return JSON.parse(line);
-          } catch (e) {
-            return null;
-          }
-        })
-        .filter(record => record !== null);
-
-      // Filter by retention period
-      const now = Date.now();
-      const recentRecords = records.filter(
-        record => (now - record.timestamp) < this.RETENTION_MS
-      );
-
-      // Keep only the most recent MAX_RECORDS
-      const trimmedRecords = recentRecords.slice(-this.MAX_RECORDS);
-
-      // Rewrite file
-      const newContent = trimmedRecords
-        .map(record => JSON.stringify(record))
-        .join('\n') + '\n';
-      
-      fs.writeFileSync(logFile, newContent, 'utf8');
-      
-      // Update count after trimming
-      this.recordCounts.set(sessionId, trimmedRecords.length);
-    } catch (error) {
-      console.error(`[SessionLogger] Failed to trim log file for ${sessionId}:`, error);
-    }
-  }
-
-  /**
-   * Read session log records
-   * @param {string} sessionId - Session ID
-   * @param {number} limit - Maximum number of records to return (default: all)
-   * @returns {Array} Array of interaction records
-   */
-  readLog(sessionId, limit = null) {
-    try {
-      const logFile = this.getLogFilePath(sessionId);
-      
-      if (!fs.existsSync(logFile)) {
-        return [];
-      }
-
-      const content = fs.readFileSync(logFile, 'utf8');
-      const lines = content.trim().split('\n').filter(line => line.trim());
-      
-      const records = lines
-        .map(line => {
-          try {
-            const record = JSON.parse(line);
-            
-            // Backward compatibility for old format
-            if (!record.type) {
-              const classifier = new OutputClassifier();
-              return {
-                timestamp: record.timestamp,
-                type: 'output',
-                data: record.data,
-                cleaned: classifier.stripBasicAnsi(record.data).trim(),
-              };
-            }
-            
-            return record;
-          } catch (e) {
-            return null;
-          }
-        })
-        .filter(record => record !== null);
-
-      if (limit && limit > 0) {
-        return records.slice(-limit);
-      }
-
-      return records;
-    } catch (error) {
-      console.error(`[SessionLogger] Failed to read log for ${sessionId}:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Delete session log file
-   * @param {string} sessionId - Session ID
-   */
-  deleteLog(sessionId) {
-    try {
-      const logFile = this.getLogFilePath(sessionId);
-      
-      if (fs.existsSync(logFile)) {
-        fs.unlinkSync(logFile);
-      }
-      
-      // Clean up classifier and other resources
-      this.classifiers.delete(sessionId);
-      this.recordCounts.delete(sessionId);
-      this.trimTimers.delete(sessionId);
-    } catch (error) {
-      console.error(`[SessionLogger] Failed to delete log for ${sessionId}:`, error);
-    }
-  }
-
-  /**
-   * Clean up old log files (called periodically)
-   */
-  cleanupOldLogs() {
-    try {
-      const files = fs.readdirSync(this.logsDir);
-      const now = Date.now();
-
-      files.forEach(file => {
-        if (!file.endsWith('.jsonl')) {
-          return;
-        }
-
-        const filePath = path.join(this.logsDir, file);
-        const stats = fs.statSync(filePath);
-        
-        // Delete files not modified in RETENTION_DAYS
-        if (now - stats.mtimeMs > this.RETENTION_MS) {
-          fs.unlinkSync(filePath);
-          console.log(`[SessionLogger] Deleted old log file: ${file}`);
-        }
-      });
-    } catch (error) {
-      console.error('[SessionLogger] Failed to cleanup old logs:', error);
+      console.error(`[SessionLogger] Failed to buffer interaction for ${sessionId}:`, error);
     }
   }
 
@@ -463,6 +340,7 @@ class SessionLogger {
    * @returns {Object} Statistics object
    */
   getLogStats(sessionId) {
+
     try {
       const logFile = this.getLogFilePath(sessionId);
       
@@ -502,6 +380,15 @@ class SessionLogger {
    * Clean up resources (timers, counts, classifiers)
    */
   cleanup() {
+    // Flush remaining buffers before cleaning up
+    this.flushAllBuffers();
+    
+    // Clear flush timer
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+
     // Clear all trim timers
     this.trimTimers.forEach(timer => clearTimeout(timer));
     this.trimTimers.clear();

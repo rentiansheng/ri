@@ -25,16 +25,16 @@ if (import.meta.env.DEV) {
 export type AppView = 'sessions' | 'history' | 'flow' | 'notify' | 'settings';
 
 function App() {
-  const {
-    sessions,
-    visibleSessionIds,
-    activeSessionId,
-    historySessionIds,
-    activeHistorySessionId,
-    tabs,
-    activeTabId,
-    createSession,
-  } = useTerminalStore();
+  // Tier 4.5: 精准订阅，避免不必要的重渲染
+  // 只订阅 ID 和长度，不订阅完整的 session 对象（避免 lastActivityTime 等字段变化触发渲染）
+  const sessionCount = useTerminalStore(state => state.sessions.length);
+  const visibleSessionIds = useTerminalStore(state => state.visibleSessionIds);
+  const activeSessionId = useTerminalStore(state => state.activeSessionId);
+  const historySessionIds = useTerminalStore(state => state.historySessionIds);
+  const activeHistorySessionId = useTerminalStore(state => state.activeHistorySessionId);
+  const tabs = useTerminalStore(state => state.tabs);
+  const activeTabId = useTerminalStore(state => state.activeTabId);
+  const createSession = useTerminalStore(state => state.createSession);
   const loadConfig = useConfigStore(state => state.loadConfig);
   const hasVisibleSessions = visibleSessionIds.length > 0;
   const hasHistorySessions = historySessionIds.length > 0;
@@ -56,12 +56,13 @@ function App() {
     return cleanup;
   }, []);
   
-  // Start AI tool monitoring (注释掉以提升终端性能)
-  // useAIToolMonitor();
+  // Start AI tool monitoring
+  useAIToolMonitor();
 
-  // Get active history session
+  // Tier 4.5: 按需获取 sessions，不在顶层订阅
+  const getSessions = useTerminalStore(state => state.sessions);
   const activeHistorySession = activeHistorySessionId 
-    ? sessions.find(s => s.id === activeHistorySessionId)
+    ? getSessions.find((s: Session) => s.id === activeHistorySessionId)
     : null;
     
   // Handle creating new session
@@ -69,14 +70,21 @@ function App() {
     createSession();
   };
 
+  // 监听导航栏收起状态，触发终端 resize
+  useEffect(() => {
+    // 延迟触发 resize，等待 CSS 过渡动画完成（通常 200-300ms）
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [sidebarCollapsed, activeView]);
+
   // Render navigation panel based on active view
-  const renderNavigationPanel = () => {
-    console.log('[App] renderNavigationPanel called with activeView:', activeView);
+  const renderNavigationPanel = React.useMemo(() => {
     switch (activeView) {
       case 'sessions':
         return <SessionList />;
       case 'history':
-        console.log('[App] Rendering HistoryList');
         return (
           <HistoryList 
             onSessionSelect={setSelectedHistorySessionId}
@@ -97,11 +105,10 @@ function App() {
       default:
         return null;
     }
-  };
+  }, [activeView, selectedHistorySessionId, selectedNotifySessionId]);
 
   // Render main content area based on active tab
-  const renderMainContent = () => {
-    console.log('[App] renderMainContent called with activeView:', activeView, 'activeTabId:', activeTabId);
+  const renderMainContent = React.useMemo(() => {
     
     // If no tabs, show welcome or empty state based on view
     if (tabs.length === 0) {
@@ -159,7 +166,7 @@ function App() {
         {/* Terminals */}
         <div className="terminal-area">
           <div className={`terminals-wrapper ${!hasVisibleSessions ? 'hidden' : ''}`}>
-            {sessions.map((session) => {
+            {getSessions.map((session: Session) => {
               const isActive = session.id === activeSessionId;
               const isVisible = visibleSessionIds.includes(session.id);
               return (
@@ -194,7 +201,7 @@ function App() {
         </div>
       </div>
     );
-  };
+  }, [tabs, activeTabId, activeView, hasVisibleSessions, visibleSessionIds, activeSessionId, getSessions, activeHistorySession, handleCreateSession]);
 
   return (
     <div className="app">
@@ -207,7 +214,7 @@ function App() {
       {(activeView === 'sessions' || activeView === 'history' || activeView === 'notify') && (
         <>
           <aside className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}>
-            {renderNavigationPanel()}
+            {renderNavigationPanel}
           </aside>
           
           {/* Navigation toggle button */}
@@ -223,7 +230,7 @@ function App() {
       
       {/* Right: Main content area */}
       <main className="app-main">
-        {renderMainContent()}
+        {renderMainContent}
       </main>
       
       {/* Notification Toast Container */}

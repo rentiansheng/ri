@@ -4,6 +4,7 @@ const { TerminalManager } = require('./terminalManager.cjs');
 const ConfigManager = require('./configManager.cjs');
 const NotificationManager = require('./notificationManager.cjs');
 const OpencodeManager = require('./opencodeManager.cjs');
+const FlowManager = require('./flowManager.cjs');
 
 // Set application name as early as possible (must be before app.whenReady)
 app.setName('RI');
@@ -24,6 +25,11 @@ const config = configManager.loadConfig();
 
 // Initialize terminal manager with configuration
 const terminalManager = new TerminalManager(config);
+
+// Initialize flow manager
+const flowManager = new FlowManager(terminalManager, configManager);
+flowManager.setupIpc();
+flowManager.startScheduler();
 
 // Listen for terminal notifications (triggered by magic strings in output)
 terminalManager.on('terminal-notification', async ({ sessionId, sessionName, type, message }) => {
@@ -367,51 +373,114 @@ class TerminalDataBuffer {
   constructor() {
     this.buffers = new Map(); // terminalId -> data[]
     this.timers = new Map();
+    this.lastFlushTime = new Map();
     this.BATCH_INTERVAL = 16; // ~60fps (16ms)
+    this.MAX_CHUNK_SIZE = 64 * 1024; // 64KB
   }
   
   add(terminalId, data) {
+    // 阶段 1.3 优化：CJK 字符绝对快速通道，完全跳过缓冲区和定时器
+    const hasCJK = /[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/.test(data);
+    
+    if (hasCJK) {
+      const t1 = Date.now();
+      // 直接发送 IPC，不进入缓冲区，零延迟
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('terminal:data', {
+          id: terminalId,
+          data: data
+        });
+      }
+      const t2 = Date.now();
+      // 改进日志：只显示前20个字符，避免混淆
+      const preview = data.substring(0, 20).replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+      console.log(`[DataBuffer] CJK bypass: ${t2-t1}ms, len: ${data.length}, preview: "${preview}"`);
+      return;
+    }
+    
+    // 非 CJK 数据进入正常流程
     if (!this.buffers.has(terminalId)) {
       this.buffers.set(terminalId, []);
     }
-    this.buffers.get(terminalId).push(data);
     
-    // 如果没有定时器，创建一个（使用 setImmediate 而不是 setTimeout）
+    const buffer = this.buffers.get(terminalId);
+    buffer.push(data);
+    
+    // 交互优化：将阈值提升至 1KB，覆盖大部分打字回显（包括 ANSI 颜色码）
+    const isSmallData = data.length < 1024;
+    const hasInteractiveKey = /[\r\n\t\x08\x7f ]/.test(data);
+    
+    let currentSize = 0;
+    for (const chunk of buffer) currentSize += chunk.length;
+    
+    // 如果是小数据包、包含按键，立即刷新，实现零延迟
+    if (currentSize > this.MAX_CHUNK_SIZE || isSmallData || hasInteractiveKey) {
+      this.flush(terminalId);
+      return;
+    }
+    
     if (!this.timers.has(terminalId)) {
-      const timer = setImmediate(() => {
-        this.flush(terminalId);
-      });
-      this.timers.set(terminalId, timer);
+      const now = Date.now();
+      const lastFlush = this.lastFlushTime.get(terminalId) || 0;
+      
+      if (now - lastFlush > this.BATCH_INTERVAL) {
+        const timer = setImmediate(() => {
+          this.flush(terminalId);
+        });
+        this.timers.set(terminalId, timer);
+      } else {
+        const delay = this.BATCH_INTERVAL - (now - lastFlush);
+        const timer = setTimeout(() => {
+          this.flush(terminalId);
+        }, delay);
+        this.timers.set(terminalId, timer);
+      }
     }
   }
   
   flush(terminalId) {
+    const timer = this.timers.get(terminalId);
+    if (timer) {
+      // 这里的清理要区分类型，或者简单点两个都调
+      clearImmediate(timer);
+      clearTimeout(timer);
+      this.timers.delete(terminalId);
+    }
+
     const batch = this.buffers.get(terminalId);
     if (!batch || batch.length === 0) {
-      this.timers.delete(terminalId);
       return;
     }
     
-    // 发送批量数据
+    const t1 = Date.now();
+    const joinedData = batch.join('');
+    const hasCJK = /[\u4e00-\u9fa5]/.test(joinedData);
+    
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('terminal:data', {
         id: terminalId,
-        data: batch.join('')
+        data: joinedData
       });
     }
     
-    // 清理
+    const t2 = Date.now();
+    if (t2 - t1 > 5 || hasCJK) {
+      console.log(`[Main] Flush ${batch.length} chunks (${joinedData.length} bytes) took ${t2-t1}ms, hasCJK: ${hasCJK}`);
+    }
+    
+    this.lastFlushTime.set(terminalId, Date.now());
     this.buffers.delete(terminalId);
-    this.timers.delete(terminalId);
   }
   
   dispose() {
     // 清理所有定时器
     for (const timer of this.timers.values()) {
       clearImmediate(timer);
+      clearTimeout(timer);
     }
     this.buffers.clear();
     this.timers.clear();
+    this.lastFlushTime.clear();
   }
 }
 
@@ -429,11 +498,21 @@ ipcMain.handle('terminal:create', (_event, payload) => {
   term.pty.onData((data) => {
     if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
     
-    // 使用批处理而不是立即发送
+    const t1 = Date.now();
+    
+    // 恢复批处理 Buffer，降低 IPC 频率，为输入法留出 CPU
     dataBuffer.add(term.id, data);
     
-    // Log terminal output
-    terminalManager.logOutput(term.id, data);
+    const t2 = Date.now();
+    
+    if (t2 - t1 > 5) {
+      console.log(`[Main] PTY -> dataBuffer took ${t2-t1}ms, data length: ${data.length}`);
+    }
+    
+    // Tier 3: 将日志记录移至 setImmediate，确保数据回显 IPC 具有更高优先级
+    setImmediate(() => {
+      terminalManager.logOutput(term.id, data);
+    });
   });
 
   term.pty.onExit(() => {
@@ -452,6 +531,10 @@ ipcMain.handle('terminal:create', (_event, payload) => {
 
 ipcMain.on('terminal:write', (_event, payload) => {
   if (!payload || !payload.id) return;
+  
+  // 调试：主进程收到写入请求
+  console.log(`[Main] IPC terminal:write for ${payload.id}:`, JSON.stringify(payload.data));
+  
   // Write will automatically log if sessionId is set
   terminalManager.write(payload.id, payload.data || '');
 });

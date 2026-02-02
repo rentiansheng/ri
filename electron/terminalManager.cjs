@@ -1,7 +1,9 @@
 const os = require('os');
 const path = require('path');
 const pty = require('node-pty');
-const { execSync } = require('child_process');
+const { exec, execSync } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 const EventEmitter = require('events');
 const SessionLogger = require('./sessionLogger.cjs');
 
@@ -39,7 +41,8 @@ class TerminalManager extends EventEmitter {
       USER: process.env.USER || os.userInfo().username,
       SHELL: shell,
       PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin',
-      LANG: 'en_US.UTF-8',
+      LANG: 'zh_CN.UTF-8',
+      LC_ALL: 'zh_CN.UTF-8',
       TERM: 'xterm-256color',
       TMPDIR: os.tmpdir(),
     };
@@ -369,7 +372,7 @@ class TerminalManager extends EventEmitter {
     console.log(`[TerminalManager] Disposed ${ids.length} terminals`);
   }
 
-  getProcessInfo(id) {
+  async getProcessInfo(id) {
     const term = this._terms.get(id);
     if (!term) return null;
     
@@ -380,7 +383,7 @@ class TerminalManager extends EventEmitter {
       // -o: 指定输出格式 (pid, ppid, comm, state)
       // -g: 进程组 ID
       const cmd = `ps -o pid,ppid,comm,state -g ${shellPid}`;
-      const output = execSync(cmd, { encoding: 'utf8' });
+      const { stdout: output } = await execAsync(cmd);
       
       // 解析输出
       const lines = output.trim().split('\n').slice(1); // 跳过标题行
