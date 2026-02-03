@@ -239,6 +239,17 @@ export interface OpencodePluginInfo {
   sourcePath?: string;
 }
 
+export interface OpencodeInstallation {
+  id: string;
+  path: string;
+  version: string | null;
+  pluginDir: string;
+  source: 'shell' | 'filesystem' | 'manual';
+  isValid: boolean;
+  isActive: boolean;
+  shellType?: string;
+}
+
 export interface OpencodePluginAPI {
   check: () => Promise<{ success: boolean; installed?: boolean; path?: string; version?: string; error?: string }>;
   install: () => Promise<{ success: boolean; path?: string; error?: string }>;
@@ -252,6 +263,31 @@ export interface OpencodePluginAPI {
       installed: boolean;
       version: string | null;
     };
+    error?: string;
+  }>;
+  // New methods for multi-path detection
+  detectAll: () => Promise<{ 
+    success: boolean; 
+    installations: OpencodeInstallation[];
+    error?: string;
+  }>;
+  getActive: () => Promise<{ 
+    success: boolean; 
+    installation?: OpencodeInstallation;
+    error?: string;
+  }>;
+  setActive: (installationId: string) => Promise<{ 
+    success: boolean; 
+    installation?: OpencodeInstallation;
+    error?: string;
+  }>;
+  addCustomPath: (path: string) => Promise<{ 
+    success: boolean; 
+    installation?: OpencodeInstallation;
+    error?: string;
+  }>;
+  removeCustomPath: (path: string) => Promise<{ 
+    success: boolean; 
     error?: string;
   }>;
 }

@@ -63,6 +63,7 @@ opencodeManager.setConfig(config);
 
 // Initialize OpenCode plugin manager
 const opencodePluginManager = new OpencodePluginManager();
+opencodePluginManager.setConfigManager(configManager);
 
 // Watch for config changes and apply them
 configManager.on('config-changed', (newConfig) => {
@@ -209,6 +210,57 @@ ipcMain.handle('opencode-plugin:get-info', async () => {
     return result;
   } catch (error) {
     console.error('[Main] Failed to get plugin info:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// New IPC handlers for multi-path detection
+ipcMain.handle('opencode-plugin:detect-all', async () => {
+  try {
+    const installations = await opencodePluginManager.detectAllInstallations(true); // force refresh
+    return { success: true, installations };
+  } catch (error) {
+    console.error('[Main] Failed to detect installations:', error);
+    return { success: false, error: error.message, installations: [] };
+  }
+});
+
+ipcMain.handle('opencode-plugin:get-active', async () => {
+  try {
+    const installation = await opencodePluginManager.getActiveInstallation();
+    return { success: true, installation };
+  } catch (error) {
+    console.error('[Main] Failed to get active installation:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:set-active', async (event, installationId) => {
+  try {
+    const installation = await opencodePluginManager.setActiveInstallation(installationId);
+    return { success: true, installation };
+  } catch (error) {
+    console.error('[Main] Failed to set active installation:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:add-custom-path', async (event, customPath) => {
+  try {
+    const installation = await opencodePluginManager.addCustomPath(customPath);
+    return { success: true, installation };
+  } catch (error) {
+    console.error('[Main] Failed to add custom path:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:remove-custom-path', async (event, customPath) => {
+  try {
+    await opencodePluginManager.removeCustomPath(customPath);
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Failed to remove custom path:', error);
     return { success: false, error: error.message };
   }
 });

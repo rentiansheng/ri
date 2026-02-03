@@ -551,3 +551,274 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ==================== OpenCode Installation Management ==================== */
+
+.opencode-installations-section {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.opencode-installations-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+/* Detect Actions */
+.opencode-detect-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.opencode-btn-detect,
+.opencode-btn-add-custom {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-btn-detect {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.opencode-btn-detect:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.opencode-btn-detect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.opencode-btn-add-custom {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.opencode-btn-add-custom:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Installations List */
+.opencode-installations-count {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: #9e9e9e;
+  font-weight: 500;
+}
+
+.opencode-installations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.opencode-installation-item {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.opencode-installation-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.opencode-installation-item.active {
+  background: rgba(74, 158, 255, 0.1);
+  border-color: rgba(74, 158, 255, 0.4);
+}
+
+.opencode-installation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.opencode-installation-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  flex: 1;
+}
+
+.opencode-installation-radio input[type="radio"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: #4a9eff;
+}
+
+.opencode-installation-path {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  word-break: break-all;
+}
+
+.opencode-btn-remove-custom {
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 69, 58, 0.2);
+  color: #ff453a;
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-btn-remove-custom:hover {
+  background: rgba(255, 69, 58, 0.3);
+  border-color: rgba(255, 69, 58, 0.5);
+}
+
+/* Installation Details */
+.opencode-installation-details {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.opencode-installation-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.opencode-installation-version {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.opencode-installation-source {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.opencode-source-shell {
+  background: rgba(33, 150, 243, 0.15);
+  color: #64b5f6;
+  border-color: rgba(33, 150, 243, 0.3);
+}
+
+.opencode-source-filesystem {
+  background: rgba(156, 39, 176, 0.15);
+  color: #ba68c8;
+  border-color: rgba(156, 39, 176, 0.3);
+}
+
+.opencode-source-manual {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffb74d;
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.opencode-installation-plugin-dir {
+  font-size: 0.8rem;
+  color: #757575;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+/* Empty State */
+.opencode-installations-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #9e9e9e;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+/* Custom Path Dialog */
+.opencode-custom-path-dialog {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.opencode-custom-path-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s;
+}
+
+.opencode-custom-path-input:focus {
+  outline: none;
+  border-color: #4a9eff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.opencode-custom-path-input::placeholder {
+  color: #757575;
+}
+
+.opencode-custom-path-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.opencode-custom-path-actions button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-custom-path-actions .opencode-btn-primary {
+  background: #4a9eff;
+  color: #fff;
+}
+
+.opencode-custom-path-actions .opencode-btn-primary:hover:not(:disabled) {
+  background: #3a8eef;
+}
+
+.opencode-custom-path-actions .opencode-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.opencode-custom-path-actions .opencode-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e0e0e0;
+}
+
+.opencode-custom-path-actions .opencode-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}

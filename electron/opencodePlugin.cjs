@@ -8,6 +8,7 @@ const path = require('path');
 const os = require('os');
 const { shell } = require('electron');
 const { execSync } = require('child_process');
+const crypto = require('crypto');
 
 class OpencodePluginManager {
   constructor() {
@@ -22,18 +23,298 @@ class OpencodePluginManager {
     
     // OpenCode config path
     this.opencodeConfigPath = path.join(os.homedir(), '.config/opencode/opencode.json');
+    
+    // Cache for detection results
+    this._detectionCache = null;
+    this._detectionCacheTime = null;
+    this._cacheTimeout = 60 * 60 * 1000; // 1 hour
+    
+    // Config manager reference (will be set by main.cjs)
+    this.configManager = null;
   }
 
   /**
-   * 检查 OpenCode 是否已安装
+   * 检查 OpenCode 是否已安装（保留旧方法用于兼容）
    */
   async isOpencodeInstalled() {
     try {
-      execSync('which opencode', { stdio: 'ignore' });
-      return true;
+      const installations = await this.detectAllInstallations();
+      return installations.length > 0;
     } catch (error) {
+      console.error('[OpencodePlugin] isOpencodeInstalled failed:', error);
       return false;
     }
+  }
+
+  /**
+   * 通过 Shell 环境检测 OpenCode (最准确)
+   */
+  async detectViaShell() {
+    const installations = [];
+    const shells = [
+      { cmd: 'zsh -l -c "which opencode"', name: 'zsh' },
+      { cmd: 'bash -l -c "which opencode"', name: 'bash' },
+      { cmd: '/bin/zsh -l -c "which opencode"', name: 'zsh-explicit' },
+      { cmd: '/bin/bash -l -c "which opencode"', name: 'bash-explicit' },
+    ];
+    
+    for (const { cmd, name } of shells) {
+      try {
+        const result = execSync(cmd, {
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          timeout: 3000,
+          env: { ...process.env, HOME: os.homedir() }
+        }).trim();
+        
+        if (result && await fs.pathExists(result)) {
+          const installation = await this.validateOpencodeInstallation(result);
+          if (installation) {
+            installation.source = 'shell';
+            installation.shellType = name;
+            installations.push(installation);
+            console.log(`[OpencodePlugin] Found via ${name}: ${result}`);
+            break; // Found one, no need to try other shells
+          }
+        }
+      } catch (error) {
+        // Shell failed, continue to next
+        continue;
+      }
+    }
+    
+    return installations;
+  }
+
+  /**
+   * 通过文件系统常见路径检测 OpenCode
+   */
+  async detectViaFilesystem() {
+    const homeDir = os.homedir();
+    const candidatePaths = [
+      // OpenCode 官方默认安装路径
+      path.join(homeDir, '.opencode/bin/opencode'),
+      
+      // Homebrew (Apple Silicon)
+      '/opt/homebrew/bin/opencode',
+      
+      // Homebrew (Intel Mac)
+      '/usr/local/bin/opencode',
+      
+      // MacPorts
+      '/opt/local/bin/opencode',
+      
+      // 用户目录常见位置
+      path.join(homeDir, '.local/bin/opencode'),
+      path.join(homeDir, 'bin/opencode'),
+      path.join(homeDir, '.cargo/bin/opencode'),
+      
+      // 配置目录
+      path.join(homeDir, '.config/opencode/bin/opencode'),
+      
+      // npm 全局安装
+      path.join(homeDir, '.npm-global/bin/opencode'),
+      path.join(homeDir, '.npm/bin/opencode'),
+      
+      // 系统路径
+      '/usr/bin/opencode',
+      '/bin/opencode',
+    ];
+    
+    const installations = [];
+    for (const candidatePath of candidatePaths) {
+      try {
+        const installation = await this.validateOpencodeInstallation(candidatePath);
+        if (installation) {
+          installation.source = 'filesystem';
+          installations.push(installation);
+          console.log(`[OpencodePlugin] Found via filesystem: ${candidatePath}`);
+        }
+      } catch (error) {
+        // Path invalid, continue
+        continue;
+      }
+    }
+    
+    return installations;
+  }
+
+  /**
+   * 通过用户自定义路径检测 OpenCode
+   */
+  async detectViaCustomPaths() {
+    const config = this.getPluginConfig();
+    const customPaths = config.customPaths || [];
+    const installations = [];
+    
+    for (const customPath of customPaths) {
+      try {
+        const installation = await this.validateOpencodeInstallation(customPath);
+        if (installation) {
+          installation.source = 'manual';
+          installations.push(installation);
+          console.log(`[OpencodePlugin] Found via custom path: ${customPath}`);
+        } else {
+          console.warn(`[OpencodePlugin] Custom path is invalid: ${customPath}`);
+        }
+      } catch (error) {
+        console.error(`[OpencodePlugin] Failed to validate custom path ${customPath}:`, error);
+        continue;
+      }
+    }
+    
+    return installations;
+  }
+
+  /**
+   * 验证路径是否为有效的 OpenCode 安装
+   * @returns {Promise<Object|null>} Installation object or null if invalid
+   */
+  async validateOpencodeInstallation(opencodeExePath) {
+    try {
+      // 1. 检查文件是否存在
+      if (!await fs.pathExists(opencodeExePath)) {
+        return null;
+      }
+      
+      // 2. 检查是否可执行
+      try {
+        await fs.access(opencodeExePath, fs.constants.X_OK);
+      } catch (error) {
+        console.warn(`[OpencodePlugin] Not executable: ${opencodeExePath}`);
+        return null;
+      }
+      
+      // 3. 尝试获取版本号 (验证是真的 OpenCode)
+      let version = null;
+      try {
+        version = execSync(`"${opencodeExePath}" --version`, {
+          encoding: 'utf-8',
+          timeout: 5000,
+          stdio: ['ignore', 'pipe', 'ignore']
+        }).trim();
+      } catch (error) {
+        console.warn(`[OpencodePlugin] Cannot get version for: ${opencodeExePath}`);
+        return null;
+      }
+      
+      // 4. 推断插件目录
+      const pluginDir = await this.getPluginDirForOpencode(opencodeExePath);
+      
+      // 5. 生成唯一 ID (用于配置存储)
+      const id = crypto.createHash('md5').update(opencodeExePath).digest('hex');
+      
+      return {
+        id,
+        path: opencodeExePath,
+        version,
+        pluginDir,
+        isValid: true,
+        isActive: false,  // Will be set later
+        source: null,     // Caller will set this
+      };
+    } catch (error) {
+      console.error(`[OpencodePlugin] Validate failed for ${opencodeExePath}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 推断 OpenCode 对应的插件目录
+   */
+  async getPluginDirForOpencode(opencodeExePath) {
+    // 默认使用 ~/.config/opencode/plugins/
+    // 未来可以通过 OpenCode 命令获取配置目录（如果支持）
+    return path.join(os.homedir(), '.config/opencode/plugins', this.pluginName);
+  }
+
+  /**
+   * 检测所有 OpenCode 安装（主方法）
+   */
+  async detectAllInstallations(forceRefresh = false) {
+    // Check cache
+    if (!forceRefresh && this._detectionCache && this._detectionCacheTime) {
+      const now = Date.now();
+      if (now - this._detectionCacheTime < this._cacheTimeout) {
+        console.log('[OpencodePlugin] Using cached detection results');
+        return this._detectionCache;
+      }
+    }
+    
+    console.log('[OpencodePlugin] Starting OpenCode detection...');
+    
+    const installationMap = new Map(); // Key: path, Value: installation
+    
+    // 1. 优先级最高: 用户手动添加的路径
+    try {
+      const customPaths = await this.detectViaCustomPaths();
+      for (const inst of customPaths) {
+        installationMap.set(inst.path, inst);
+      }
+      console.log(`[OpencodePlugin] Custom paths: ${customPaths.length}`);
+    } catch (error) {
+      console.error('[OpencodePlugin] detectViaCustomPaths failed:', error);
+    }
+    
+    // 2. Shell 环境检测 (最准确)
+    try {
+      const shellPaths = await this.detectViaShell();
+      for (const inst of shellPaths) {
+        if (!installationMap.has(inst.path)) {
+          installationMap.set(inst.path, inst);
+        }
+      }
+      console.log(`[OpencodePlugin] Shell detection: ${shellPaths.length}`);
+    } catch (error) {
+      console.error('[OpencodePlugin] detectViaShell failed:', error);
+    }
+    
+    // 3. 文件系统常见路径检测 (兜底)
+    try {
+      const fsPaths = await this.detectViaFilesystem();
+      for (const inst of fsPaths) {
+        if (!installationMap.has(inst.path)) {
+          installationMap.set(inst.path, inst);
+        }
+      }
+      console.log(`[OpencodePlugin] Filesystem detection: ${fsPaths.length}`);
+    } catch (error) {
+      console.error('[OpencodePlugin] detectViaFilesystem failed:', error);
+    }
+    
+    // Convert to array and filter valid ones
+    let installations = Array.from(installationMap.values()).filter(inst => inst.isValid);
+    
+    // Load active installation from config
+    const config = this.getPluginConfig();
+    const activeId = config.activeOpencodeId;
+    
+    if (activeId) {
+      installations = installations.map(inst => ({
+        ...inst,
+        isActive: inst.id === activeId
+      }));
+    } else if (installations.length > 0) {
+      // No active set, auto-select the first one (prefer manual > shell > filesystem)
+      installations[0].isActive = true;
+    }
+    
+    // Sort: active first, then by source priority
+    installations.sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      
+      const sourceOrder = { manual: 0, shell: 1, filesystem: 2 };
+      return sourceOrder[a.source] - sourceOrder[b.source];
+    });
+    
+    console.log(`[OpencodePlugin] Total installations found: ${installations.length}`);
+    
+    // Cache results
+    this._detectionCache = installations;
+    this._detectionCacheTime = Date.now();
+    
+    return installations;
   }
 
   /**
@@ -41,9 +322,20 @@ class OpencodePluginManager {
    */
   async getOpencodeVersion() {
     try {
-      const version = execSync('opencode --version', { encoding: 'utf-8' }).trim();
+      const activeInstallation = await this.getActiveInstallation();
+      if (activeInstallation) {
+        return activeInstallation.version;
+      }
+      
+      // Fallback to old method
+      const version = execSync('opencode --version', { 
+        encoding: 'utf-8',
+        timeout: 5000,
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).trim();
       return version;
     } catch (error) {
+      console.error('[OpencodePlugin] Failed to get version:', error);
       return null;
     }
   }
@@ -231,6 +523,164 @@ class OpencodePluginManager {
         error: error.message,
       };
     }
+  }
+
+  /**
+   * 设置 ConfigManager 引用
+   */
+  setConfigManager(configManager) {
+    this.configManager = configManager;
+  }
+
+  /**
+   * 获取插件配置
+   */
+  getPluginConfig() {
+    if (!this.configManager) {
+      console.warn('[OpencodePlugin] ConfigManager not set, using defaults');
+      return {
+        activeOpencodeId: null,
+        customPaths: [],
+        detectionCache: null
+      };
+    }
+    
+    const config = this.configManager.loadConfig();
+    if (!config.opencodePlugin) {
+      config.opencodePlugin = {
+        activeOpencodeId: null,
+        customPaths: [],
+        detectionCache: null
+      };
+    }
+    
+    return config.opencodePlugin;
+  }
+
+  /**
+   * 保存插件配置
+   */
+  savePluginConfig(pluginConfig) {
+    if (!this.configManager) {
+      console.error('[OpencodePlugin] ConfigManager not set, cannot save config');
+      return;
+    }
+    
+    const config = this.configManager.loadConfig();
+    config.opencodePlugin = pluginConfig;
+    this.configManager.saveConfig(config);
+  }
+
+  /**
+   * 获取当前活动的 OpenCode 安装
+   */
+  async getActiveInstallation() {
+    const installations = await this.detectAllInstallations();
+    const active = installations.find(inst => inst.isActive);
+    
+    if (!active && installations.length > 0) {
+      // Auto-select first one if none active
+      installations[0].isActive = true;
+      await this.setActiveInstallation(installations[0].id);
+      return installations[0];
+    }
+    
+    return active || null;
+  }
+
+  /**
+   * 设置活动的 OpenCode 安装
+   */
+  async setActiveInstallation(installationId) {
+    const installations = await this.detectAllInstallations();
+    const installation = installations.find(inst => inst.id === installationId);
+    
+    if (!installation) {
+      throw new Error(`Installation not found: ${installationId}`);
+    }
+    
+    // Update config
+    const config = this.getPluginConfig();
+    config.activeOpencodeId = installationId;
+    this.savePluginConfig(config);
+    
+    // Update target path for plugin installation
+    this.targetPath = installation.pluginDir;
+    
+    // Clear cache to force refresh
+    this._detectionCache = null;
+    this._detectionCacheTime = null;
+    
+    console.log(`[OpencodePlugin] Active installation set to: ${installation.path}`);
+    
+    return installation;
+  }
+
+  /**
+   * 添加自定义路径
+   */
+  async addCustomPath(customPath) {
+    // Validate path first
+    const installation = await this.validateOpencodeInstallation(customPath);
+    if (!installation) {
+      throw new Error('Invalid OpenCode path or not executable');
+    }
+    
+    installation.source = 'manual';
+    
+    // Add to config
+    const config = this.getPluginConfig();
+    if (!config.customPaths) {
+      config.customPaths = [];
+    }
+    
+    // Check if already exists
+    if (config.customPaths.includes(customPath)) {
+      throw new Error('Path already added');
+    }
+    
+    config.customPaths.push(customPath);
+    this.savePluginConfig(config);
+    
+    // Clear cache
+    this._detectionCache = null;
+    this._detectionCacheTime = null;
+    
+    console.log(`[OpencodePlugin] Custom path added: ${customPath}`);
+    
+    return installation;
+  }
+
+  /**
+   * 移除自定义路径
+   */
+  async removeCustomPath(customPath) {
+    const config = this.getPluginConfig();
+    if (!config.customPaths) {
+      config.customPaths = [];
+    }
+    
+    const index = config.customPaths.indexOf(customPath);
+    if (index === -1) {
+      throw new Error('Path not found in custom paths');
+    }
+    
+    config.customPaths.splice(index, 1);
+    
+    // If this was the active installation, clear it
+    const installations = await this.detectAllInstallations();
+    const installation = installations.find(inst => inst.path === customPath);
+    if (installation && installation.isActive) {
+      config.activeOpencodeId = null;
+    }
+    
+    this.savePluginConfig(config);
+    
+    // Clear cache
+    this._detectionCache = null;
+    this._detectionCacheTime = null;
+    
+    console.log(`[OpencodePlugin] Custom path removed: ${customPath}`);
   }
 }
 

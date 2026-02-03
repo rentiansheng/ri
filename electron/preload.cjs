@@ -115,5 +115,11 @@ contextBridge.exposeInMainWorld('opencodePlugin', {
   openDir: () => ipcRenderer.invoke('opencode-plugin:open-dir'),
   openDocs: () => ipcRenderer.invoke('opencode-plugin:open-docs'),
   getInfo: () => ipcRenderer.invoke('opencode-plugin:get-info'),
+  // New methods for multi-path detection
+  detectAll: () => ipcRenderer.invoke('opencode-plugin:detect-all'),
+  getActive: () => ipcRenderer.invoke('opencode-plugin:get-active'),
+  setActive: (installationId) => ipcRenderer.invoke('opencode-plugin:set-active', installationId),
+  addCustomPath: (path) => ipcRenderer.invoke('opencode-plugin:add-custom-path', path),
+  removeCustomPath: (path) => ipcRenderer.invoke('opencode-plugin:remove-custom-path', path),
 });
 

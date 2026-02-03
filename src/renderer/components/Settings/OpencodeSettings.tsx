@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useConfigStore } from '../../store/configStore';
 import { useNotifyStore } from '../../store/notifyStore';
-import { OpencodeStatus, OpencodeLogEntry, OpencodePluginInfo } from '../../types/global';
+import { OpencodeStatus, OpencodeLogEntry, OpencodePluginInfo, OpencodeInstallation } from '../../types/global';
 import './OpencodeSettings.css';
 
 const OpencodeSettings: React.FC = () => {
@@ -27,6 +27,13 @@ const OpencodeSettings: React.FC = () => {
     opencode?: { installed: boolean; version: string | null };
   } | null>(null);
   const [pluginInstalling, setPluginInstalling] = useState(false);
+  
+  // Installation detection state
+  const [installations, setInstallations] = useState<OpencodeInstallation[]>([]);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [showAddCustomPath, setShowAddCustomPath] = useState(false);
+  const [customPathInput, setCustomPathInput] = useState('');
+  const [autoDetected, setAutoDetected] = useState(false);
   
   // Refs
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -103,10 +110,176 @@ const OpencodeSettings: React.FC = () => {
           plugin: result.plugin,
           opencode: result.opencode,
         });
+        
+        // Auto-detect installations if OpenCode is installed
+        if (result.opencode?.installed && !autoDetected) {
+          setAutoDetected(true);
+          handleDetectInstallations();
+        }
       }
     } catch (error) {
       console.error('Failed to load plugin info:', error);
     }
+  };
+  
+  // Detect all OpenCode installations
+  const handleDetectInstallations = async () => {
+    setIsDetecting(true);
+    try {
+      const result = await window.opencodePlugin.detectAll();
+      if (result.success) {
+        setInstallations(result.installations);
+        
+        if (result.installations.length === 0) {
+          notifyStore.addNotification({
+            id: Date.now().toString(),
+            sessionId: 'opencode',
+            sessionName: 'OpenCode',
+            title: 'No Installations Found',
+            body: 'Could not detect any OpenCode installations. Try adding a custom path.',
+            type: 'warning',
+            timestamp: Date.now(),
+            read: false
+          });
+        } else {
+          console.log(`[OpencodeSettings] Found ${result.installations.length} OpenCode installation(s)`);
+        }
+      }
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Detection Failed',
+        body: error.message,
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  // Set active installation
+  const handleSetActiveInstallation = async (installationId: string) => {
+    try {
+      const result = await window.opencodePlugin.setActive(installationId);
+      if (result.success) {
+        // Update local state
+        setInstallations(prev => prev.map(inst => ({
+          ...inst,
+          isActive: inst.id === installationId
+        })));
+        
+        notifyStore.addNotification({
+          id: Date.now().toString(),
+          sessionId: 'opencode',
+          sessionName: 'OpenCode',
+          title: 'Active Installation Changed',
+          body: 'OpenCode installation selected successfully',
+          type: 'success',
+          timestamp: Date.now(),
+          read: false
+        });
+        
+        // Reload plugin info
+        await loadPluginInfo();
+      } else {
+        throw new Error(result.error || 'Failed to set active');
+      }
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Failed to Set Active',
+        body: error.message,
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    }
+  };
+
+  // Add custom path
+  const handleAddCustomPath = async () => {
+    if (!customPathInput.trim()) return;
+    
+    try {
+      const result = await window.opencodePlugin.addCustomPath(customPathInput);
+      if (result.success && result.installation) {
+        setInstallations(prev => [...prev, result.installation!]);
+        setCustomPathInput('');
+        setShowAddCustomPath(false);
+        
+        notifyStore.addNotification({
+          id: Date.now().toString(),
+          sessionId: 'opencode',
+          sessionName: 'OpenCode',
+          title: 'Custom Path Added',
+          body: `Added: ${customPathInput}`,
+          type: 'success',
+          timestamp: Date.now(),
+          read: false
+        });
+      } else {
+        throw new Error(result.error || 'Invalid path');
+      }
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Add Path Failed',
+        body: error.message,
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    }
+  };
+
+  // Remove custom path
+  const handleRemoveCustomPath = async (customPath: string) => {
+    if (!confirm(`Remove custom path: ${customPath}?`)) return;
+    
+    try {
+      const result = await window.opencodePlugin.removeCustomPath(customPath);
+      if (result.success) {
+        setInstallations(prev => prev.filter(inst => inst.path !== customPath));
+        
+        notifyStore.addNotification({
+          id: Date.now().toString(),
+          sessionId: 'opencode',
+          sessionName: 'OpenCode',
+          title: 'Custom Path Removed',
+          body: `Removed: ${customPath}`,
+          type: 'success',
+          timestamp: Date.now(),
+          read: false
+        });
+        
+        // Reload plugin info
+        await loadPluginInfo();
+      }
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Remove Failed',
+        body: error.message,
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    }
+  };
+  
+  const handleShowAddCustomPath = () => {
+    setShowAddCustomPath(true);
+    setCustomPathInput('');
   };
   
   const handleSave = async () => {
@@ -499,6 +672,122 @@ const OpencodeSettings: React.FC = () => {
             让 OpenCode 完成任务时自动通知到 RI。插件会自动检测 RI 终端环境，
             在其他终端中不会影响 OpenCode 的正常使用。
           </p>
+          
+          {/* OpenCode Installation Detection & Management */}
+          <div className="opencode-installations-section">
+            <h4>OpenCode Installation Management</h4>
+            
+            <div className="opencode-detect-actions">
+              <button 
+                className="opencode-btn-detect"
+                onClick={handleDetectInstallations}
+                disabled={isDetecting}
+              >
+                {isDetecting ? 'Detecting...' : '🔍 Detect OpenCode Installations'}
+              </button>
+              
+              <button 
+                className="opencode-btn-add-custom"
+                onClick={handleShowAddCustomPath}
+              >
+                ➕ Add Custom Path
+              </button>
+            </div>
+            
+            {/* Installations List */}
+            {installations.length > 0 ? (
+              <div className="opencode-installations-list">
+                <p className="opencode-installations-count">
+                  Found {installations.length} OpenCode installation{installations.length > 1 ? 's' : ''}
+                </p>
+                
+                {installations.map((inst) => (
+                  <div 
+                    key={inst.id} 
+                    className={`opencode-installation-item ${inst.isActive ? 'active' : ''}`}
+                  >
+                    <div className="opencode-installation-header">
+                      <label className="opencode-installation-radio">
+                        <input
+                          type="radio"
+                          name="active-opencode"
+                          checked={inst.isActive}
+                          onChange={() => handleSetActiveInstallation(inst.id)}
+                        />
+                        <span className="opencode-installation-path">{inst.path}</span>
+                      </label>
+                      {inst.source === 'manual' && (
+                        <button 
+                          className="opencode-btn-remove-custom"
+                          onClick={() => handleRemoveCustomPath(inst.path)}
+                          title="Remove custom path"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="opencode-installation-details">
+                      <span className="opencode-installation-badge opencode-installation-version">
+                        Version: {inst.version || 'Unknown'}
+                      </span>
+                      <span className={`opencode-installation-badge opencode-installation-source opencode-source-${inst.source}`}>
+                        Source: {inst.source}
+                      </span>
+                    </div>
+                    
+                    <div className="opencode-installation-plugin-dir" title={inst.pluginDir}>
+                      Plugin Directory: {inst.pluginDir}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : isDetecting ? (
+              <div className="opencode-installations-empty">
+                Detecting OpenCode installations...
+              </div>
+            ) : (
+              <div className="opencode-installations-empty">
+                No OpenCode installations detected. Click "🔍 Detect" to search or add a custom path.
+              </div>
+            )}
+            
+            {/* Add Custom Path Dialog */}
+            {showAddCustomPath && (
+              <div className="opencode-custom-path-dialog">
+                <input
+                  type="text"
+                  placeholder="/path/to/opencode (e.g., /usr/local/bin/opencode)"
+                  value={customPathInput}
+                  onChange={(e) => setCustomPathInput(e.target.value)}
+                  className="opencode-custom-path-input"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddCustomPath();
+                    } else if (e.key === 'Escape') {
+                      setShowAddCustomPath(false);
+                    }
+                  }}
+                  autoFocus
+                />
+                <div className="opencode-custom-path-actions">
+                  <button 
+                    className="opencode-btn-primary"
+                    onClick={handleAddCustomPath}
+                    disabled={!customPathInput.trim()}
+                  >
+                    Add
+                  </button>
+                  <button 
+                    className="opencode-btn-secondary"
+                    onClick={() => setShowAddCustomPath(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           
           {!pluginInfo ? (
             <div className="opencode-plugin-loading">Loading plugin status...</div>
