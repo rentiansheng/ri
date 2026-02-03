@@ -1,0 +1,22 @@
+{
+  "name": "opencode-ri-notification",
+  "version": "1.0.0",
+  "description": "OpenCode plugin for Second Brain OS (RI) notification integration",
+  "main": "index.ts",
+  "type": "module",
+  "keywords": [
+    "opencode",
+    "plugin",
+    "notification",
+    "ri",
+    "second-brain"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

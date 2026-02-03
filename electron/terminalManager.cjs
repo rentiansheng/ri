@@ -47,9 +47,16 @@ class TerminalManager extends EventEmitter {
       TMPDIR: os.tmpdir(),
     };
 
-    // Inject RISESSION environment variable if sessionId is provided
+    // Inject RI environment variables for OpenCode plugin detection
+    envVars.RI_TERMINAL = 'true';
+    
     if (sessionId) {
-      envVars.RISESSION = sessionId;
+      envVars.RISESSION = sessionId;  // Legacy variable
+      envVars.RI_SESSION_ID = sessionId;  // For OpenCode plugin
+    }
+    
+    if (sessionName) {
+      envVars.RI_SESSION_NAME = sessionName;  // For OpenCode plugin
     }
     
     const workingDir = cwd || envVars.HOME;
@@ -77,12 +84,14 @@ class TerminalManager extends EventEmitter {
     } catch (error) {
       // If zsh fails, try bash
       const bashShell = '/bin/bash';
+      const bashEnvVars = { ...envVars, SHELL: bashShell };
+      
       const term = pty.spawn(bashShell, [], {
         name: 'xterm-256color',
         cols: 80,
         rows: 24,
         cwd: workingDir,
-        env: { ...envVars, SHELL: bashShell },
+        env: bashEnvVars,
       });
 
       const entry = {

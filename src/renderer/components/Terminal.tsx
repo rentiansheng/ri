@@ -193,7 +193,7 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [isVisible]);
 
   useEffect(() => {
-    console.log(`[Terminal ${terminalId}] useEffect for initialization. isVisible: ${isVisible}, isActive: ${isActive}`);
+    console.log(`[Terminal ${terminalId}] useEffect for initialization. sessionId: ${sessionId}, isVisible: ${isVisible}, isActive: ${isActive}`);
     if (!containerRef.current || hasInitializedRef.current) return;
 
     console.log(`[Terminal ${terminalId}] Initializing...`);
@@ -430,7 +430,7 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [terminalId, sessionId]); // Removed isNameSetByUser to prevent re-initialization
 
   useEffect(() => {
-    console.log(`[Terminal ${terminalId}] useEffect for open/focus. isReady: ${isReady}, isActive: ${isActive}, isVisible: ${isVisible}`);
+    console.log(`[Terminal ${terminalId}] useEffect for open/focus. sessionId: ${sessionId}, isReady: ${isReady}, isActive: ${isActive}, isVisible: ${isVisible}, hasOpened: ${hasOpenedRef.current}`);
     if (!isReady || !isActive || !isVisible || !containerRef.current || !xtermRef.current) return;
 
     if (!hasOpenedRef.current) {
@@ -510,6 +510,18 @@ const Terminal: React.FC<TerminalProps> = ({
     }
   }, [isReady, isActive, isVisible, terminalId]);
 
+  // Force refresh when visibility changes
+  useEffect(() => {
+    if (isVisible && isReady && xtermRef.current) {
+      console.log(`[Terminal ${terminalId}] Visibility changed to visible, forcing refresh`);
+      // Force a full refresh of the terminal
+      xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+      // Also ensure it's focused if active
+      if (isActive) {
+        xtermRef.current.focus();
+      }
+    }
+  }, [isVisible, isActive, isReady, terminalId]);
 
   const handleSearch = (term: string, forward: boolean = true) => {
     if (!searchAddonRef.current || !term) return;
@@ -558,12 +570,22 @@ const Terminal: React.FC<TerminalProps> = ({
       <div 
         ref={containerRef} 
         className="terminal-container"
+        data-session-id={sessionId}
+        data-terminal-id={terminalId}
+        data-is-visible={isVisible}
+        data-is-active={isActive}
         style={{ 
-          display: isVisible ? 'block' : 'none',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           height: '100%',
           width: '100%',
           contain: 'strict',
           visibility: isVisible ? 'visible' : 'hidden',
+          pointerEvents: isVisible ? 'auto' : 'none',
+          zIndex: isVisible && isActive ? 2 : isVisible ? 1 : 0,
         }}
         onClick={() => {
           if (isActive && isVisible && xtermRef.current) {

@@ -335,6 +335,67 @@ class SessionLogger {
   }
 
   /**
+   * Read log file for a session
+   * @param {string} sessionId - Session ID
+   * @returns {Array} Array of log records
+   */
+  readLog(sessionId) {
+    try {
+      const logFile = this.getLogFilePath(sessionId);
+      
+      if (!fs.existsSync(logFile)) {
+        return [];
+      }
+
+      const content = fs.readFileSync(logFile, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      
+      return lines.map(line => {
+        try {
+          return JSON.parse(line);
+        } catch (e) {
+          console.warn(`[SessionLogger] Failed to parse log line:`, e);
+          return null;
+        }
+      }).filter(record => record !== null);
+    } catch (error) {
+      console.error(`[SessionLogger] Failed to read log for ${sessionId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Delete log file for a session
+   * @param {string} sessionId - Session ID
+   */
+  deleteLog(sessionId) {
+    try {
+      // Flush any pending buffer first
+      this.flushSessionBuffer(sessionId);
+      
+      // Clear cached data
+      this.logBuffers.delete(sessionId);
+      this.recordCounts.delete(sessionId);
+      this.classifiers.delete(sessionId);
+      
+      // Clear any pending trim timer
+      if (this.trimTimers && this.trimTimers.has(sessionId)) {
+        clearTimeout(this.trimTimers.get(sessionId));
+        this.trimTimers.delete(sessionId);
+      }
+      
+      // Delete the log file
+      const logFile = this.getLogFilePath(sessionId);
+      if (fs.existsSync(logFile)) {
+        fs.unlinkSync(logFile);
+        console.log(`[SessionLogger] Deleted log for session ${sessionId}`);
+      }
+    } catch (error) {
+      console.error(`[SessionLogger] Failed to delete log for ${sessionId}:`, error);
+    }
+  }
+
+  /**
    * Get log statistics
    * @param {string} sessionId - Session ID
    * @returns {Object} Statistics object
@@ -373,6 +434,44 @@ class SessionLogger {
         oldestRecord: null,
         newestRecord: null,
       };
+    }
+  }
+
+  /**
+   * Clean up old log files based on retention policy
+   */
+  cleanupOldLogs() {
+    try {
+      if (!fs.existsSync(this.logsDir)) return;
+
+      const files = fs.readdirSync(this.logsDir);
+      const now = Date.now();
+      let deletedCount = 0;
+
+      for (const file of files) {
+        if (!file.endsWith('.jsonl')) continue;
+
+        const filePath = path.join(this.logsDir, file);
+        const stats = fs.statSync(filePath);
+        const age = now - stats.mtimeMs;
+
+        if (age > this.RETENTION_MS) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+          
+          // Clean up in-memory data for this session
+          const sessionId = file.replace('.jsonl', '');
+          this.logBuffers.delete(sessionId);
+          this.recordCounts.delete(sessionId);
+          this.classifiers.delete(sessionId);
+        }
+      }
+
+      if (deletedCount > 0) {
+        console.log(`[SessionLogger] Cleaned up ${deletedCount} old log files`);
+      }
+    } catch (error) {
+      console.error('[SessionLogger] Failed to cleanup old logs:', error);
     }
   }
 

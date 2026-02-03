@@ -12,6 +12,7 @@ interface NotifyListProps {
 
 const NotifyList: React.FC<NotifyListProps> = ({ onSessionSelect, selectedSessionId }) => {
   const notifyStore = useNotifyStore();
+  const showSession = useTerminalStore((state) => state.showSession);
   const groups = notifyStore.getAllGroups();
   const totalUnread = notifyStore.totalUnread;
 
@@ -22,6 +23,14 @@ const NotifyList: React.FC<NotifyListProps> = ({ onSessionSelect, selectedSessio
   const handleClearSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     await window.notification.clear(sessionId);
+  };
+
+  const handleSessionClick = (sessionId: string) => {
+    // Update selected state for UI feedback
+    onSessionSelect(sessionId);
+    
+    // Actually switch to the session
+    showSession(sessionId);
   };
 
   const getNotificationIcon = (type: NotificationType) => {
@@ -88,7 +97,7 @@ const NotifyList: React.FC<NotifyListProps> = ({ onSessionSelect, selectedSessio
                 <div 
                   key={group.sessionId} 
                   className={`notify-list-group ${selectedSessionId === group.sessionId ? 'active' : ''}`}
-                  onClick={() => onSessionSelect(group.sessionId)}
+                  onClick={() => handleSessionClick(group.sessionId)}
                 >
                   <div className="notify-list-group-header">
                     <span className="notify-list-group-session">

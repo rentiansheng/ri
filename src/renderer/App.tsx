@@ -166,6 +166,20 @@ function App() {
         {/* Terminals */}
         <div className="terminal-area">
           <div className={`terminals-wrapper ${!hasVisibleSessions ? 'hidden' : ''}`}>
+            {(() => {
+              console.log('[App] Rendering terminals:', {
+                activeSessionId,
+                visibleSessionIds,
+                sessions: getSessions.map(s => ({ 
+                  id: s.id, 
+                  terminalId: s.terminalId, 
+                  name: s.name,
+                  isActive: s.id === activeSessionId,
+                  isVisible: visibleSessionIds.includes(s.id)
+                }))
+              });
+              return null;
+            })()}
             {getSessions.map((session: Session) => {
               const isActive = session.id === activeSessionId;
               const isVisible = visibleSessionIds.includes(session.id);
