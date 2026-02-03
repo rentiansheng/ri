@@ -4,6 +4,7 @@ const { TerminalManager } = require('./terminalManager.cjs');
 const ConfigManager = require('./configManager.cjs');
 const NotificationManager = require('./notificationManager.cjs');
 const OpencodeManager = require('./opencodeManager.cjs');
+const OpencodePluginManager = require('./opencodePlugin.cjs');
 const FlowManager = require('./flowManager.cjs');
 
 // Set application name as early as possible (must be before app.whenReady)
@@ -59,6 +60,9 @@ let notificationManager = null;
 // Initialize OpenCode manager
 const opencodeManager = new OpencodeManager();
 opencodeManager.setConfig(config);
+
+// Initialize OpenCode plugin manager
+const opencodePluginManager = new OpencodePluginManager();
 
 // Watch for config changes and apply them
 configManager.on('config-changed', (newConfig) => {
@@ -143,6 +147,68 @@ ipcMain.handle('opencode:get-logs', async () => {
     return { success: true, logs };
   } catch (error) {
     console.error('[Main] Failed to get OpenCode logs:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ------------------ IPC: OpenCode Plugin ------------------
+
+ipcMain.handle('opencode-plugin:check', async () => {
+  try {
+    const result = await opencodePluginManager.checkPlugin();
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Main] Failed to check plugin:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:install', async () => {
+  try {
+    const result = await opencodePluginManager.installPlugin();
+    return result;
+  } catch (error) {
+    console.error('[Main] Failed to install plugin:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:uninstall', async () => {
+  try {
+    const result = await opencodePluginManager.uninstallPlugin();
+    return result;
+  } catch (error) {
+    console.error('[Main] Failed to uninstall plugin:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:open-dir', async () => {
+  try {
+    const result = await opencodePluginManager.openPluginDirectory();
+    return result;
+  } catch (error) {
+    console.error('[Main] Failed to open plugin directory:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:open-docs', async () => {
+  try {
+    const result = await opencodePluginManager.openPluginDocs();
+    return result;
+  } catch (error) {
+    console.error('[Main] Failed to open plugin docs:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:get-info', async () => {
+  try {
+    const result = await opencodePluginManager.getPluginInfo();
+    return result;
+  } catch (error) {
+    console.error('[Main] Failed to get plugin info:', error);
     return { success: false, error: error.message };
   }
 });

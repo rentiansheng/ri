@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useConfigStore } from '../../store/configStore';
 import { useNotifyStore } from '../../store/notifyStore';
-import { OpencodeStatus, OpencodeLogEntry } from '../../types/global';
+import { OpencodeStatus, OpencodeLogEntry, OpencodePluginInfo } from '../../types/global';
 import './OpencodeSettings.css';
 
 const OpencodeSettings: React.FC = () => {
@@ -21,6 +21,13 @@ const OpencodeSettings: React.FC = () => {
   const [logs, setLogs] = useState<OpencodeLogEntry[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Plugin state
+  const [pluginInfo, setPluginInfo] = useState<{
+    plugin?: OpencodePluginInfo;
+    opencode?: { installed: boolean; version: string | null };
+  } | null>(null);
+  const [pluginInstalling, setPluginInstalling] = useState(false);
+  
   // Refs
   const logsEndRef = useRef<HTMLDivElement>(null);
   const statusCleanupRef = useRef<(() => void) | null>(null);
@@ -31,6 +38,7 @@ const OpencodeSettings: React.FC = () => {
     loadConfig();
     loadStatus();
     loadLogs();
+    loadPluginInfo();
     
     // Subscribe to status changes
     statusCleanupRef.current = window.opencode.onStatusChange((newStatus) => {
@@ -84,6 +92,20 @@ const OpencodeSettings: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load OpenCode logs:', error);
+    }
+  };
+  
+  const loadPluginInfo = async () => {
+    try {
+      const result = await window.opencodePlugin.getInfo();
+      if (result.success) {
+        setPluginInfo({
+          plugin: result.plugin,
+          opencode: result.opencode,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load plugin info:', error);
     }
   };
   
@@ -240,6 +262,83 @@ const OpencodeSettings: React.FC = () => {
     }
   };
   
+  const handleInstallPlugin = async () => {
+    setPluginInstalling(true);
+    try {
+      const result = await window.opencodePlugin.install();
+      if (result.success) {
+        notifyStore.addNotification({
+          id: Date.now().toString(),
+          sessionId: 'opencode',
+          sessionName: 'OpenCode',
+          title: 'Plugin Installed',
+          body: 'OpenCode RI notification plugin installed successfully',
+          type: 'success',
+          timestamp: Date.now(),
+          read: false
+        });
+        // Reload plugin info
+        await loadPluginInfo();
+      } else {
+        throw new Error(result.error || 'Installation failed');
+      }
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Plugin Install Failed',
+        body: error.message || 'Failed to install plugin',
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    } finally {
+      setPluginInstalling(false);
+    }
+  };
+
+  const handleReinstallPlugin = async () => {
+    if (!confirm('Reinstall the plugin? This will replace the existing installation.')) {
+      return;
+    }
+    await handleInstallPlugin();
+  };
+
+  const handleOpenPluginDir = async () => {
+    try {
+      await window.opencodePlugin.openDir();
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Error',
+        body: error.message || 'Failed to open plugin directory',
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    }
+  };
+
+  const handleOpenPluginDocs = async () => {
+    try {
+      await window.opencodePlugin.openDocs();
+    } catch (error: any) {
+      notifyStore.addNotification({
+        id: Date.now().toString(),
+        sessionId: 'opencode',
+        sessionName: 'OpenCode',
+        title: 'Error',
+        body: error.message || 'Failed to open plugin documentation',
+        type: 'error',
+        timestamp: Date.now(),
+        read: false
+      });
+    }
+  };
+  
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString();
@@ -389,6 +488,101 @@ const OpencodeSettings: React.FC = () => {
               {isSaving ? 'Saving...' : 'Save Configuration'}
             </button>
           </div>
+        </div>
+      </div>
+      
+      <div className="opencode-section">
+        <h3>RI Notification Plugin</h3>
+        
+        <div className="opencode-plugin-info">
+          <p className="opencode-plugin-description">
+            让 OpenCode 完成任务时自动通知到 RI。插件会自动检测 RI 终端环境，
+            在其他终端中不会影响 OpenCode 的正常使用。
+          </p>
+          
+          {!pluginInfo ? (
+            <div className="opencode-plugin-loading">Loading plugin status...</div>
+          ) : !pluginInfo.opencode?.installed ? (
+            <div className="opencode-plugin-warning">
+              <span className="opencode-plugin-warning-icon">⚠️</span>
+              <div>
+                <strong>OpenCode Not Detected</strong>
+                <p>
+                  OpenCode is not installed or not in PATH. Install OpenCode first:
+                  <br />
+                  <code>curl -fsSL https://opencode.ai/install | bash</code>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="opencode-plugin-status">
+              <div className="opencode-plugin-status-row">
+                <div className="opencode-plugin-status-label">
+                  <span className="opencode-plugin-status-icon">
+                    {pluginInfo.plugin?.installed ? '✅' : '○'}
+                  </span>
+                  <span>Plugin Status</span>
+                </div>
+                <div className="opencode-plugin-status-value">
+                  {pluginInfo.plugin?.installed ? (
+                    <>
+                      <span className="opencode-plugin-status-installed">Installed</span>
+                      {pluginInfo.plugin.version && (
+                        <span className="opencode-plugin-version">v{pluginInfo.plugin.version}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="opencode-plugin-status-not-installed">Not Installed</span>
+                  )}
+                </div>
+              </div>
+              
+              {pluginInfo.plugin?.installed && (
+                <div className="opencode-plugin-status-row">
+                  <div className="opencode-plugin-status-label">
+                    <span>Plugin Path</span>
+                  </div>
+                  <div className="opencode-plugin-status-value">
+                    <code className="opencode-plugin-path">{pluginInfo.plugin.path}</code>
+                  </div>
+                </div>
+              )}
+              
+              <div className="opencode-plugin-actions">
+                {pluginInfo.plugin?.installed ? (
+                  <>
+                    <button
+                      className="opencode-btn-secondary"
+                      onClick={handleReinstallPlugin}
+                      disabled={pluginInstalling}
+                    >
+                      {pluginInstalling ? 'Installing...' : 'Reinstall Plugin'}
+                    </button>
+                    <button
+                      className="opencode-btn-secondary"
+                      onClick={handleOpenPluginDir}
+                    >
+                      Open Plugin Directory
+                    </button>
+                    <button
+                      className="opencode-btn-secondary"
+                      onClick={handleOpenPluginDocs}
+                    >
+                      View Documentation
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="opencode-btn-primary"
+                    onClick={handleInstallPlugin}
+                    disabled={pluginInstalling}
+                  >
+                    {pluginInstalling ? 'Installing...' : 'Install Plugin'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       

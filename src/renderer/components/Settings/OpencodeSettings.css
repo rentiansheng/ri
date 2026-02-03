@@ -385,3 +385,169 @@
 .opencode-logs-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Plugin Section */
+.opencode-plugin-info {
+  background: #2d2d2d;
+  border: 1px solid #3e3e3e;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.opencode-plugin-description {
+  color: #aaa;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.opencode-plugin-loading {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+}
+
+.opencode-plugin-warning {
+  display: flex;
+  gap: 12px;
+  background: rgba(255, 176, 0, 0.1);
+  border: 1px solid rgba(255, 176, 0, 0.3);
+  border-radius: 4px;
+  padding: 12px;
+  color: #ffb000;
+}
+
+.opencode-plugin-warning-icon {
+  font-size: 1.5rem;
+}
+
+.opencode-plugin-warning strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #ffb000;
+}
+
+.opencode-plugin-warning p {
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.opencode-plugin-warning code {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+.opencode-plugin-status {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.opencode-plugin-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.opencode-plugin-status-row:last-of-type {
+  border-bottom: none;
+}
+
+.opencode-plugin-status-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.opencode-plugin-status-icon {
+  font-size: 1.2rem;
+}
+
+.opencode-plugin-status-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.opencode-plugin-status-installed {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.opencode-plugin-status-not-installed {
+  color: #888;
+}
+
+.opencode-plugin-version {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.opencode-plugin-path {
+  color: #888;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.opencode-plugin-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #3e3e3e;
+  flex-wrap: wrap;
+}
+
+.opencode-btn-primary,
+.opencode-btn-secondary {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-btn-primary {
+  background: #4a9eff;
+  color: #fff;
+}
+
+.opencode-btn-primary:hover:not(:disabled) {
+  background: #3a8eef;
+  transform: translateY(-1px);
+}
+
+.opencode-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.opencode-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.opencode-btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.opencode-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

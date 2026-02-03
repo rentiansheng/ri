@@ -1,5 +1,7 @@
 # RI
 
+> [English](#) | [中文文档](./README_CN.md)
+
 A modern terminal session manager built with Electron, React, and TypeScript. Organize your development workflows with multiple terminal sessions, command history tracking, notifications, and an intuitive unified interface.
 
 ## Features
@@ -51,6 +53,11 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
 - **Status Monitoring**: Real-time PIDs, port numbers, and process state
 - **Log Streaming**: Live logs for debugging and monitoring
 - **Configurable**: Startup delay, auto-restart, log levels
+- **RI Notification Plugin**: One-click installation of OpenCode plugin for seamless RI integration
+  - Sends notifications to RI when OpenCode completes tasks
+  - Auto-detects RI terminal environment
+  - Zero configuration required - uses sensible defaults
+  - Easy management: Install, reinstall, open directory, view docs
 
 ## Tech Stack
 
@@ -114,7 +121,8 @@ Alternatively, use the provided build script:
 │   ├── main.cjs                # Main process entry point
 │   ├── terminalManager.cjs     # Terminal process management (with PGID cleanup)
 │   ├── sessionLogger.cjs       # Command history logging
-│   └── notificationManager.cjs # Desktop notifications
+│   ├── notificationManager.cjs # Desktop notifications
+│   └── opencodePlugin.cjs      # OpenCode plugin installation manager
 ├── src/
 │   └── renderer/               # React renderer process
 │       ├── components/         # React components
@@ -124,10 +132,20 @@ Alternatively, use the provided build script:
 │       │   ├── ConfirmContextMenu.tsx # Context-aware deletion confirmation
 │       │   ├── SessionList.tsx       # Session navigation list
 │       │   ├── HistoryList.tsx       # History session list
+│       │   ├── Settings/
+│       │   │   ├── OpencodeSettings.tsx # OpenCode configuration and plugin management
+│       │   │   └── OpencodeSettings.css
+│       │   └── SettingsView.tsx      # Main settings interface
 ...
 ├── docs/                        # Documentation
 │   ├── NOTIFICATIONS.md        # Notification system details
-│   └── NOTIFICATION_API.md     # Terminal notification protocol
+│   ├── NOTIFICATION_API.md     # Terminal notification protocol
+│   └── OPENCODE_PLUGIN.md      # OpenCode plugin integration guide
+├── opencode-ri-notification/   # OpenCode RI notification plugin source
+│   ├── index.ts                # Plugin entry point
+│   ├── lib/                    # Plugin implementation
+│   ├── README.md               # Plugin documentation
+│   └── package.json            # Plugin manifest
 ├── PROCESS_CLEANUP.md           # Details on zombie process prevention
 ├── README.md                   # This file
 └── README_CN.md                # Chinese version
@@ -205,17 +223,27 @@ The unified tab bar shows all open content with type prefixes:
 1. Click the ⚙ Settings icon in the sidebar
 2. A `[S]: Settings` tab opens in the tab bar
 3. Configure:
-   - **Notifications**: Desktop alerts, themes, external integrations (Slack, Discord, etc.)
-   - **OpenCode**: Auto-start OpenCode server and web interface
+   - **Notifications**: Desktop alerts, themes, toast duration, external integrations
+     - System notifications (macOS Notification Center)
+     - In-app toast notifications with customizable themes
+     - External channels: Slack, Discord, Telegram, DingTalk (钉钉), WeCom (企业微信)
+   - **OpenCode**: Auto-start and plugin management
+     - Server and web interface auto-start options
+     - Process control and monitoring
+     - Live log streaming
+     - **RI Notification Plugin**: One-click install/reinstall OpenCode plugin
+       - Automatically sends OpenCode task completion notifications to RI
+       - Plugin auto-detects RI environment (no config needed)
+       - Manage plugin: Install, Reinstall, Open Directory, View Documentation
    - Terminal preferences (coming soon)
    - UI appearance options (coming soon)
-   - Keyboard shortcuts (coming soon)
+   - Advanced settings (coming soon)
 
 ### OpenCode Integration
 
 RI includes built-in integration with OpenCode, allowing you to automatically start OpenCode services when the application launches.
 
-**Features:**
+**Configuration Features:**
 - Auto-start OpenCode Server and/or Web interface on app launch
 - Independent control of server and web processes
 - Real-time status monitoring with PIDs and port numbers
@@ -223,6 +251,36 @@ RI includes built-in integration with OpenCode, allowing you to automatically st
 - Configurable startup delay to ensure smooth initialization
 - Auto-restart on crash (optional)
 - Choose log level (DEBUG, INFO, WARN, ERROR)
+
+**RI Notification Plugin:**
+
+RI provides a dedicated OpenCode plugin that sends notifications when OpenCode completes tasks, making it easy to track your AI assistant's work.
+
+**Features:**
+- **One-Click Installation**: Install the plugin directly from RI Settings
+- **Auto-Detection**: Plugin automatically detects RI terminal environment
+- **Zero Configuration**: Works out of the box with sensible defaults
+- **Non-Intrusive**: Only active in RI terminals, doesn't affect OpenCode elsewhere
+- **Easy Management**: Reinstall, open directory, or view documentation from Settings
+
+**Setup:**
+1. Go to Settings → OpenCode tab
+2. Scroll to "RI Notification Plugin" section
+3. Click "Install Plugin" button
+4. Plugin is now active in all RI terminal sessions
+
+**How it Works:**
+- When you run `opencode` in an RI terminal, the plugin activates automatically
+- OpenCode sends notifications to RI when tasks complete (builds, tests, errors, etc.)
+- Notifications appear in RI's notification panel and as system alerts
+- In non-RI terminals, the plugin stays inactive
+
+**Notification Types:**
+- ✅ Task completion
+- 🔨 Build and test results
+- ❌ Error alerts
+- 🔒 Permission requests
+- ⏱️ Long-running command notifications
 
 ### AI Tool Monitoring
 
@@ -293,6 +351,28 @@ Three main stores handle application state:
 **Issue**: `opencode` or other processes still running after RI closes.
 - **Fix**: Run `./cleanup-processes.sh` to manually purge orphans.
 - Report the issue as the app should handle this automatically via its PGID killing logic.
+
+---
+
+## Documentation
+
+### Getting Started
+- [Quick Start Guide](./docs/QUICKSTART.md) - Get up and running in 5 minutes
+- [中文快速开始](./docs/QUICKSTART_CN.md) (coming soon)
+
+### Core Features
+- [Notification System](./docs/NOTIFICATIONS.md) - How notifications work
+- [Notification API (Magic Strings)](./docs/NOTIFICATION_API.md) - Send custom notifications from terminal
+- [Process Cleanup](./PROCESS_CLEANUP.md) - Zombie process prevention
+
+### Integrations
+- [OpenCode Plugin Guide](./docs/OPENCODE_PLUGIN.md) - Complete OpenCode integration guide
+- [OpenCode Plugin (中文)](./docs/OPENCODE_PLUGIN_CN.md) (coming soon)
+
+### Chinese Documentation
+- [中文版 README](./README_CN.md) (coming soon)
+- [通知系统 (中文)](./docs/NOTIFICATIONS_CN.md) (coming soon)
+- [通知 API (中文)](./docs/NOTIFICATION_API_CN.md) (coming soon)
 
 ---
 

@@ -107,3 +107,13 @@ contextBridge.exposeInMainWorld('flow', {
   runNow: (flow) => ipcRenderer.invoke('flow:run-now', flow),
   clearLogs: (flowId) => ipcRenderer.send('flow:clear-logs', flowId),
 });
+
+contextBridge.exposeInMainWorld('opencodePlugin', {
+  check: () => ipcRenderer.invoke('opencode-plugin:check'),
+  install: () => ipcRenderer.invoke('opencode-plugin:install'),
+  uninstall: () => ipcRenderer.invoke('opencode-plugin:uninstall'),
+  openDir: () => ipcRenderer.invoke('opencode-plugin:open-dir'),
+  openDocs: () => ipcRenderer.invoke('opencode-plugin:open-docs'),
+  getInfo: () => ipcRenderer.invoke('opencode-plugin:get-info'),
+});
+

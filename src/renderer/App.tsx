@@ -165,7 +165,8 @@ function App() {
         
         {/* Terminals */}
         <div className="terminal-area">
-          <div className={`terminals-wrapper ${!hasVisibleSessions ? 'hidden' : ''}`}>
+          {/* Only show terminals wrapper when active tab is a terminal session */}
+          <div className={`terminals-wrapper ${!hasVisibleSessions || activeTab?.type !== 'terminal' ? 'hidden' : ''}`}>
             {(() => {
               console.log('[App] Rendering terminals:', {
                 activeSessionId,

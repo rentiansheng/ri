@@ -232,6 +232,30 @@ export interface FlowAPI {
   clearLogs: (flowId: string) => void;
 }
 
+export interface OpencodePluginInfo {
+  installed: boolean;
+  path: string;
+  version: string | null;
+  sourcePath?: string;
+}
+
+export interface OpencodePluginAPI {
+  check: () => Promise<{ success: boolean; installed?: boolean; path?: string; version?: string; error?: string }>;
+  install: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  uninstall: () => Promise<{ success: boolean; error?: string }>;
+  openDir: () => Promise<{ success: boolean; error?: string }>;
+  openDocs: () => Promise<{ success: boolean; error?: string }>;
+  getInfo: () => Promise<{ 
+    success: boolean; 
+    plugin?: OpencodePluginInfo;
+    opencode?: {
+      installed: boolean;
+      version: string | null;
+    };
+    error?: string;
+  }>;
+}
+
 declare global {
   interface Window {
     terminal: Terminal;
@@ -240,6 +264,7 @@ declare global {
     notification: NotificationAPI;
     opencode: OpencodeAPI;
     flow: FlowAPI;
+    opencodePlugin: OpencodePluginAPI;
   }
 }
 

@@ -1,5 +1,7 @@
 # Terminal Notification API (Magic Strings)
 
+> [English](#) | [中文文档](./NOTIFICATION_API_CN.md)
+
 RI supports a "Magic Strings" protocol that allows CLI tools and scripts to trigger application-level notifications directly from the terminal.
 
 ## Protocol Specification
@@ -40,3 +42,28 @@ printf "\033]9;{\"title\": \"Build Status\", \"body\": \"Production build failed
 ## Implementation Details
 
 The terminal scanner in `src/renderer/components/Terminal.tsx` uses a regex to catch these sequences before they are rendered by xterm.js. This ensures the "Magic String" itself is never visible to the user in the terminal scrollback.
+
+## OpenCode Plugin Usage
+
+The RI OpenCode plugin uses this protocol to send notifications automatically. When installed, it sends notifications for:
+
+- Task completions
+- Build and test results
+- Errors and warnings
+- Permission requests
+- Long-running commands
+
+**Example from OpenCode Plugin**:
+```typescript
+// Plugin detects task completion and sends notification
+const notification = {
+  title: 'Task Complete',
+  body: 'Successfully implemented login feature',
+  type: 'success'
+};
+
+// Send via terminal output
+process.stdout.write(`\x1b]9;${JSON.stringify(notification)}\x07`);
+```
+
+See [OpenCode Plugin Documentation](./OPENCODE_PLUGIN.md) for installation and usage details.
