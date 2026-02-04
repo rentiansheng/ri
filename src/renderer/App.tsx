@@ -4,13 +4,10 @@ import { useConfigStore } from './store/configStore';
 import { useNotifyStore } from './store/notifyStore';
 import Sidebar from './components/Sidebar';
 import SessionList from './components/SessionList';
-import HistoryList from './components/HistoryList';
-import HistoryDetail from './components/HistoryDetail';
 import NotifyList from './components/NotifyList';
 import NotifyDetail from './components/NotifyDetail';
 import Terminal from './components/Terminal';
 import { TabBar } from './components/TabBar';
-import { HistoryContent } from './components/HistoryContent';
 import FlowView from './components/FlowView';
 import SettingsView from './components/SettingsView';
 import { NotificationToastContainer } from './components/NotificationToast';
@@ -22,27 +19,22 @@ if (import.meta.env.DEV) {
   import('./utils/testNotifications');
 }
 
-export type AppView = 'sessions' | 'history' | 'flow' | 'notify' | 'settings';
+export type AppView = 'sessions' | 'flow' | 'notify' | 'settings';
 
 function App() {
-  // Tier 4.5: 精准订阅，避免不必要的重渲染
-  // 只订阅 ID 和长度，不订阅完整的 session 对象（避免 lastActivityTime 等字段变化触发渲染）
+  // 精准订阅，避免不必要的重渲染
   const sessionCount = useTerminalStore(state => state.sessions.length);
   const visibleSessionIds = useTerminalStore(state => state.visibleSessionIds);
   const activeSessionId = useTerminalStore(state => state.activeSessionId);
-  const historySessionIds = useTerminalStore(state => state.historySessionIds);
-  const activeHistorySessionId = useTerminalStore(state => state.activeHistorySessionId);
   const tabs = useTerminalStore(state => state.tabs);
   const activeTabId = useTerminalStore(state => state.activeTabId);
   const createSession = useTerminalStore(state => state.createSession);
   const loadConfig = useConfigStore(state => state.loadConfig);
   const hasVisibleSessions = visibleSessionIds.length > 0;
-  const hasHistorySessions = historySessionIds.length > 0;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState<AppView>('sessions');
   
-  // State for selected items in history and notify views
-  const [selectedHistorySessionId, setSelectedHistorySessionId] = useState<string | null>(null);
+  // State for selected items in notify view
   const [selectedNotifySessionId, setSelectedNotifySessionId] = useState<string | null>(null);
   
   // Load configuration on mount
@@ -59,12 +51,9 @@ function App() {
   // Start AI tool monitoring
   useAIToolMonitor();
 
-  // Tier 4.5: 按需获取 sessions，不在顶层订阅
+  // 按需获取 sessions
   const getSessions = useTerminalStore(state => state.sessions);
-  const activeHistorySession = activeHistorySessionId 
-    ? getSessions.find((s: Session) => s.id === activeHistorySessionId)
-    : null;
-    
+  
   // Handle creating new session
   const handleCreateSession = () => {
     createSession();
@@ -84,13 +73,6 @@ function App() {
     switch (activeView) {
       case 'sessions':
         return <SessionList />;
-      case 'history':
-        return (
-          <HistoryList 
-            onSessionSelect={setSelectedHistorySessionId}
-            selectedSessionId={selectedHistorySessionId}
-          />
-        );
       case 'notify':
         return (
           <NotifyList 
@@ -105,7 +87,7 @@ function App() {
       default:
         return null;
     }
-  }, [activeView, selectedHistorySessionId, selectedNotifySessionId]);
+  }, [activeView, selectedNotifySessionId]);
 
   // Render main content area based on active tab
   const renderMainContent = React.useMemo(() => {
@@ -197,16 +179,6 @@ function App() {
             })}
           </div>
           
-          {/* Render history content for active history tab */}
-          {activeTab?.type === 'history' && activeTab.sessionId && (
-            <div className="history-area">
-              <HistoryContent 
-                sessionId={activeTab.sessionId}
-                sessionName={activeTab.title.replace('[H]: ', '')}
-              />
-            </div>
-          )}
-          
           {/* Render settings for active settings tab */}
           {activeTab?.type === 'settings' && (
             <div className="settings-area">
@@ -216,7 +188,7 @@ function App() {
         </div>
       </div>
     );
-  }, [tabs, activeTabId, activeView, hasVisibleSessions, visibleSessionIds, activeSessionId, getSessions, activeHistorySession, handleCreateSession]);
+  }, [tabs, activeTabId, activeView, hasVisibleSessions, visibleSessionIds, activeSessionId, getSessions, handleCreateSession]);
 
   return (
     <div className="app">
@@ -225,8 +197,8 @@ function App() {
         <Sidebar activeView={activeView} onViewChange={setActiveView} />
       </aside>
       
-      {/* Left: Navigation panel (250px, collapsible) - show for sessions, history, notify */}
-      {(activeView === 'sessions' || activeView === 'history' || activeView === 'notify') && (
+      {/* Left: Navigation panel (250px, collapsible) - show for sessions, notify */}
+      {(activeView === 'sessions' || activeView === 'notify') && (
         <>
           <aside className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}>
             {renderNavigationPanel}

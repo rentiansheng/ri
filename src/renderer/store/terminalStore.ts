@@ -22,12 +22,12 @@ export interface Session {
 }
 
 // Tab types for unified tab system
-export type TabType = 'terminal' | 'history' | 'settings';
+export type TabType = 'terminal' | 'settings';
 
 export interface Tab {
   id: string;  // Unique tab ID
   type: TabType;
-  sessionId?: string;  // For terminal and history tabs
+  sessionId?: string;  // For terminal tabs
   title: string;  // Display title
 }
 
@@ -35,16 +35,12 @@ interface TerminalStore {
   sessions: Session[];
   
   // Unified tab system
-  tabs: Tab[];  // All tabs (terminal, history, settings)
+  tabs: Tab[];  // All tabs (terminal, settings)
   activeTabId: string | null;  // Currently active tab ID
   
-  // Legacy - keeping for compatibility, will remove later
+  // Legacy - keeping for compatibility
   visibleSessionIds: string[];  // Tab Bar 中显示的 Session IDs（按打开顺序）
   activeSessionId: string | null;  // 当前激活的 Session ID
-  
-  // History view state - legacy
-  historySessionIds: string[];  // 历史视图中打开的 Session IDs（按打开顺序）
-  activeHistorySessionId: string | null;  // 当前激活的历史 Session ID
   
   createSession: (name?: string) => Promise<void>;
   deleteSession: (id: string) => void;
@@ -59,11 +55,6 @@ interface TerminalStore {
   updateLastActivityTime: (sessionId: string) => void;  // 更新最后活动时间
   setAIToolState: (sessionId: string, state: AIToolState | null) => void;  // 设置 AI 工具状态
   getAIToolState: (sessionId: string) => AIToolState | null;  // 获取 AI 工具状态
-  
-  // History view actions
-  openHistorySession: (sessionId: string) => void;  // 在历史视图中打开会话
-  closeHistorySession: (sessionId: string) => void;  // 从历史视图关闭会话
-  setActiveHistorySession: (sessionId: string | null) => void;  // 设置激活的历史会话
   
   // New unified tab actions
   openTab: (type: TabType, sessionId?: string, title?: string) => void;  // Open a new tab
@@ -81,8 +72,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   activeTabId: null,
   visibleSessionIds: [],
   activeSessionId: null,
-  historySessionIds: [],
-  activeHistorySessionId: null,
   
   createSession: async (name?: string) => {
     try {
@@ -352,50 +341,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     return session?.aiToolState || null;
   },
   
-  // History view actions
-  openHistorySession: (sessionId: string) => {
-    const isAlreadyOpen = get().historySessionIds.includes(sessionId);
-    
-    if (isAlreadyOpen) {
-      // 已经打开，只需激活
-      set({ activeHistorySessionId: sessionId });
-    } else {
-      // 打开新的历史会话
-      set((state) => ({
-        historySessionIds: [...state.historySessionIds, sessionId],
-        activeHistorySessionId: sessionId,
-      }));
-    }
-  },
-  
-  closeHistorySession: (sessionId: string) => {
-    set((state) => {
-      const newHistoryIds = state.historySessionIds.filter((id) => id !== sessionId);
-      
-      // 如果关闭的是激活的，切换到前一个或清空
-      let newActiveHistoryId = state.activeHistorySessionId;
-      if (state.activeHistorySessionId === sessionId) {
-        const currentIndex = state.historySessionIds.indexOf(sessionId);
-        if (currentIndex > 0) {
-          newActiveHistoryId = state.historySessionIds[currentIndex - 1];
-        } else if (newHistoryIds.length > 0) {
-          newActiveHistoryId = newHistoryIds[0];
-        } else {
-          newActiveHistoryId = null;
-        }
-      }
-      
-      return {
-        historySessionIds: newHistoryIds,
-        activeHistorySessionId: newActiveHistoryId,
-      };
-    });
-  },
-  
-  setActiveHistorySession: (sessionId: string | null) => {
-    set({ activeHistorySessionId: sessionId });
-  },
-  
   // New unified tab actions
   openTab: (type: TabType, sessionId?: string, title?: string) => {
     const tabId = nanoid();
@@ -405,8 +350,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (!tabTitle) {
       if (type === 'terminal' && session) {
         tabTitle = session.name;
-      } else if (type === 'history' && session) {
-        tabTitle = `[H]: ${session.name}`;
       } else if (type === 'settings') {
         tabTitle = '[S]: Settings';
       }
