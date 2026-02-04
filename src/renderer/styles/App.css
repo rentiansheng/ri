@@ -217,6 +217,10 @@
 .terminal-container .xterm {
   height: 100%;
   width: 100%;
+  padding: 4px 8px;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
 }
 
 .terminal-container .xterm .xterm-viewport {
@@ -225,6 +229,38 @@
 
 .terminal-container .xterm .xterm-screen {
   width: 100% !important;
+}
+
+/* 优化终端字体渲染 */
+.terminal-container .xterm .xterm-rows {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+}
+
+/* 确保行间距紧凑，适合 ASCII art - 强制覆盖内联样式 */
+.terminal-container .xterm .xterm-rows > div {
+  /* 使用与 fontSize (14px) 相同的高度，消除额外间距 */
+  line-height: 14px !important;
+  height: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.terminal-container .xterm canvas {
+  image-rendering: crisp-edges;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* 优化文本选择 */
+.terminal-container .xterm .xterm-selection-layer {
+  mix-blend-mode: multiply;
+}
+
+/* 改进光标可见性 */
+.terminal-container .xterm .xterm-cursor-layer {
+  z-index: 2;
 }
 
 /* History area (full width when active) */

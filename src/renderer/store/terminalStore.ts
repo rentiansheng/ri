@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import { useNotifyStore } from './notifyStore';
+import { useXTermStore } from './xtermStore';
 
 export interface AIToolState {
   status: 'thinking' | 'waiting' | 'executing' | 'idle' | 'completed';
@@ -83,6 +84,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       });
       const now = Date.now();
       
+      // 创建 xterm 实例
+      const xtermStore = useXTermStore.getState();
+      xtermStore.createInstance(sessionId, terminalId);
+      
       set((state) => ({
         sessions: [
           ...state.sessions,
@@ -114,7 +119,13 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     // Actually delete the session and terminal
     const session = get().sessions.find((s) => s.id === id);
     if (session) {
+      // 销毁 xterm 实例
+      const xtermStore = useXTermStore.getState();
+      xtermStore.destroyInstance(id);
+      
+      // 销毁 PTY
       window.terminal.dispose({ id: session.terminalId });
+      
       // Delete session log file
       window.sessionLog.delete({ sessionId: id });
     }

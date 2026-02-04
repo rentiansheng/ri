@@ -1,11 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
-import { SearchAddon } from '@xterm/addon-search';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { useTerminalStore } from '../store/terminalStore';
+import { useXTermStore } from '../store/xtermStore';
 import 'xterm/css/xterm.css';
 
 // ============================================================
@@ -55,7 +52,7 @@ interface TerminalProps {
 }
 
 // ============================================================
-// Terminal 组件 - 使用隐藏 textarea 接管输入
+// Terminal 组件 - 从 xtermStore 获取实例
 // ============================================================
 const Terminal: React.FC<TerminalProps> = ({ 
   sessionId, 
@@ -64,15 +61,12 @@ const Terminal: React.FC<TerminalProps> = ({
   isVisible 
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<XTerm | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const searchAddonRef = useRef<SearchAddon | null>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
+  const dataUnsubscribeRef = useRef<(() => void) | null>(null);
+  const exitUnsubscribeRef = useRef<(() => void) | null>(null);
   
   const lastUpdateTimeRef = useRef<number>(0);
-  const hasInitializedRef = useRef<boolean>(false);
-  const hasOpenedRef = useRef<boolean>(false);
   
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,14 +74,18 @@ const Terminal: React.FC<TerminalProps> = ({
   
   const updateLastActivityTime = useTerminalStore((state) => state.updateLastActivityTime);
   const renameSession = useTerminalStore((state) => state.renameSession);
-  
-  const [isReady, setIsReady] = useState(false);
+  const xtermStore = useXTermStore();
+
+  // 从 xtermStore 获取 xterm 实例
+  const xtermInstance = xtermStore.getInstance(sessionId);
+  const xterm = xtermInstance?.xterm;
+  const fitAddon = xtermInstance?.fitAddon;
+  const searchAddon = xtermInstance?.searchAddon;
 
   // 同步 textarea 位置到光标位置（候选框显示在光标下方）
   const syncInputPosition = () => {
-    if (!xtermRef.current || !hiddenInputRef.current || !containerRef.current) return;
+    if (!xterm || !hiddenInputRef.current || !containerRef.current) return;
     
-    const xterm = xtermRef.current;
     const buffer = xterm.buffer.active;
     const cursorX = buffer.cursorX;
     const cursorY = buffer.cursorY;
@@ -151,7 +149,15 @@ const Terminal: React.FC<TerminalProps> = ({
 
   // 创建隐藏的 textarea 接管所有输入
   const setupHiddenInput = () => {
-    if (!containerRef.current || !xtermRef.current) return;
+    if (!containerRef.current || !xterm) {
+      console.log(`[Terminal ${sessionId}] setupHiddenInput: missing deps`, {
+        hasContainer: !!containerRef.current,
+        hasXterm: !!xterm
+      });
+      return;
+    }
+
+    console.log(`[Terminal ${sessionId}] Setting up hidden input`);
 
     const input = document.createElement('textarea');
     input.style.position = 'absolute';
@@ -170,6 +176,8 @@ const Terminal: React.FC<TerminalProps> = ({
     containerRef.current.appendChild(input);
     hiddenInputRef.current = input;
 
+    console.log(`[Terminal ${sessionId}] Hidden input created and appended`);
+
     // 在 composition 开始时同步位置
     const onCompositionStart = () => {
       isComposingRef.current = true;
@@ -183,6 +191,8 @@ const Terminal: React.FC<TerminalProps> = ({
 
     // 键盘事件处理（特殊键）
     const onKeyDown = (e: KeyboardEvent) => {
+      console.log(`[Terminal ${sessionId}] onKeyDown:`, e.key);
+      
       // 在每次按键前同步位置，确保输入法候选框在正确位置
       if (!isComposingRef.current) {
         // 延迟一点让光标先移动
@@ -335,6 +345,7 @@ const Terminal: React.FC<TerminalProps> = ({
 
     // Input 事件（普通字符输入）
     const onInput = () => {
+      console.log(`[Terminal ${sessionId}] onInput:`, input.value, 'composing:', isComposingRef.current);
       if (!isComposingRef.current && input.value) {
         sendToPty(input.value);
         input.value = '';
@@ -370,7 +381,10 @@ const Terminal: React.FC<TerminalProps> = ({
     input.addEventListener('blur', onBlur);
     input.addEventListener('paste', onPaste);
 
+    console.log(`[Terminal ${sessionId}] Event listeners attached to textarea`);
+
     return () => {
+      console.log(`[Terminal ${sessionId}] Cleaning up textarea event listeners`);
       input.removeEventListener('keydown', onKeyDown);
       input.removeEventListener('compositionstart', onCompositionStart);
       input.removeEventListener('compositionupdate', onCompositionUpdate);
@@ -381,58 +395,22 @@ const Terminal: React.FC<TerminalProps> = ({
       if (input.parentNode) {
         input.parentNode.removeChild(input);
       }
+      // Clear the ref so it can be recreated
+      if (hiddenInputRef.current === input) {
+        hiddenInputRef.current = null;
+      }
     };
   };
 
-  // 初始化终端
+  // 设置 PTY 数据监听
   useEffect(() => {
-    console.log(`[Terminal ${terminalId}] useEffect for initialization`);
-    if (!containerRef.current || hasInitializedRef.current) return;
+    if (!xterm) return;
 
-    console.log(`[Terminal ${terminalId}] Initializing...`);
-    hasInitializedRef.current = true;
-
-    // 创建 xterm 实例，禁用其输入系统
-    const xterm = new XTerm({
-      fontFamily: 'Menlo, Monaco, "Courier New", "PingFang SC", "Microsoft YaHei", monospace',
-      fontSize: 14,
-      cursorBlink: false,
-      cursorStyle: 'block',
-      scrollback: 10000,
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#ffffff',
-        cursorAccent: '#1e1e1e',
-        selectionBackground: 'rgba(38, 79, 120, 0.4)',
-      },
-      rows: 24,
-      cols: 80,
-      allowProposedApi: true,
-      disableStdin: true,  // 关键！禁用 xterm.js 的输入系统
-      convertEol: false,
-    });
-
-    const fitAddon = new FitAddon();
-    const searchAddon = new SearchAddon();
-    const webLinksAddon = new WebLinksAddon();
-    const unicode11Addon = new Unicode11Addon();
+    console.log(`[Terminal ${sessionId}] Setting up PTY data listener`);
     
-    xterm.loadAddon(fitAddon);
-    xterm.loadAddon(searchAddon);
-    xterm.loadAddon(webLinksAddon);
-    xterm.loadAddon(unicode11Addon);
-    xterm.unicode.activeVersion = '11';
-    
-    xtermRef.current = xterm;
-    fitAddonRef.current = fitAddon;
-    searchAddonRef.current = searchAddon;
-
-    setIsReady(true);
-
-    // 监听 PTY 输出 -> 直接写入 xterm 渲染
+    // 监听 PTY 输出
     const unsubscribeData = window.terminal.onData((payload: { id: string; data: string }) => {
-      if (payload.id === terminalId && xtermRef.current) {
+      if (payload.id === terminalId && xterm) {
         // RIName 功能：检测 PTY 回显中的 RIName="xxx" 命令
         if (payload.data.includes('RIName=')) {
           const riNameMatch = payload.data.match(/RIName=["']([^"']+)["']/);
@@ -440,18 +418,17 @@ const Terminal: React.FC<TerminalProps> = ({
             const newName = riNameMatch[1].trim();
             if (newName) {
               renameSession(sessionId, newName);
-              console.log(`[Terminal] Auto-renamed session to: "${newName}"`);
             }
           }
         }
         
-        // 直接写入 xterm，没有本地回显，所有回显来自 PTY
-        xtermRef.current.write(payload.data);
+        // 直接写入 xterm
+        xterm.write(payload.data);
         
-        // 数据写入后，同步 textarea 位置（光标可能已移动）
+        // 数据写入后，同步 textarea 位置
         requestAnimationFrame(() => syncInputPosition());
         
-        // 缓存输出（用于通知检测等）
+        // 缓存输出
         const cache = outputCache.get(terminalId) || [];
         cache.push({ data: payload.data, timestamp: Date.now() });
         outputCache.set(terminalId, cache);
@@ -466,112 +443,165 @@ const Terminal: React.FC<TerminalProps> = ({
     });
 
     const unsubscribeExit = window.terminal.onExit((payload: { id: string }) => {
-      if (payload.id === terminalId && xtermRef.current) {
-        xtermRef.current.write('\r\n[Process completed]\r\n');
+      if (payload.id === terminalId && xterm) {
+        xterm.write('\r\n[Process completed]\r\n');
       }
     });
 
-    const handleResize = () => {
-      if (fitAddonRef.current && xtermRef.current) {
-        try {
-          fitAddonRef.current.fit();
-          const { cols, rows } = xtermRef.current;
-          window.terminal.resize({ id: terminalId, cols, rows });
-        } catch (e) {
-          console.error('[Terminal] Resize failed:', e);
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
+    dataUnsubscribeRef.current = unsubscribeData;
+    exitUnsubscribeRef.current = unsubscribeExit;
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      console.log(`[Terminal ${sessionId}] Cleaning up PTY listeners`);
       unsubscribeData();
       unsubscribeExit();
-      if (xtermRef.current) {
-        xtermRef.current.dispose();
-      }
-      clearOutputCache(terminalId);
-      hasInitializedRef.current = false;
-      hasOpenedRef.current = false;
-      setIsReady(false);
     };
-  }, [terminalId, sessionId]);
+  }, [xterm, terminalId, sessionId]);
 
-  // Open terminal and setup hidden input
+  // 打开 xterm 到 DOM (只在首次打开时运行，不响应 isVisible 变化)
   useEffect(() => {
-    console.log(`[Terminal ${terminalId}] useEffect for open/focus`);
-    if (!isReady || !isActive || !isVisible || !containerRef.current || !xtermRef.current) return;
-
-    if (!hasOpenedRef.current) {
-      try {
-        xtermRef.current.open(containerRef.current);
-        hasOpenedRef.current = true;
-        
-        // 设置隐藏 textarea 接管输入
-        const cleanup = setupHiddenInput();
-        
-        // WebGL 渲染器
-        requestAnimationFrame(() => {
-          if (!xtermRef.current) return;
-          try {
-            const webglAddon = new WebglAddon();
-            webglAddon.onContextLoss(() => {
-              console.warn('[Terminal] WebGL context lost');
-              webglAddon.dispose();
-            });
-            xtermRef.current.loadAddon(webglAddon);
-            console.log(`[Terminal ${terminalId}] WebGL renderer loaded`);
-          } catch (e) {
-            console.warn(`[Terminal ${terminalId}] WebGL addon failed:`, e);
-          }
-        });
-
-        setTimeout(() => {
-          if (fitAddonRef.current && xtermRef.current) {
-            fitAddonRef.current.fit();
-            const { cols, rows } = xtermRef.current;
-            window.terminal.resize({ id: terminalId, cols, rows });
-            
-            // 聚焦到隐藏输入框
-            if (hiddenInputRef.current) {
-              hiddenInputRef.current.focus({ preventScroll: true });
-            }
-            
-            // 初始化时同步一次位置
-            setTimeout(() => syncInputPosition(), 100);
-          }
-        }, 100);
-
-        return cleanup;
-      } catch (error) {
-        console.error(`[Terminal ${terminalId}] Open failed:`, error);
-      }
-    } else {
-      // 重新聚焦
-      setTimeout(() => {
-        if (fitAddonRef.current && xtermRef.current) {
-          fitAddonRef.current.fit();
-          const { cols, rows } = xtermRef.current;
-          window.terminal.resize({ id: terminalId, cols, rows });
-          
-          // 聚焦到隐藏输入框
-          if (hiddenInputRef.current) {
-            hiddenInputRef.current.focus({ preventScroll: true });
-          }
-          
-          // 重新激活时也同步位置
-          setTimeout(() => syncInputPosition(), 50);
-        }
-      }, 50);
+    if (!xterm || !xtermInstance || !containerRef.current) return;
+    
+    // 如果已经打开过，不需要重新 open
+    if (xtermInstance.isOpened) {
+      console.log(`[Terminal ${sessionId}] Already opened, skipping open`);
+      return;
     }
-  }, [isReady, isActive, isVisible, terminalId]);
+
+    console.log(`[Terminal ${sessionId}] Opening xterm to DOM`);
+
+    try {
+      xterm.open(containerRef.current);
+      xtermStore.markAsOpened(sessionId);
+      
+      // 加载 WebGL 渲染器
+      requestAnimationFrame(() => {
+        if (!xterm) return;
+        try {
+          const webglAddon = new WebglAddon();
+          webglAddon.onContextLoss(() => {
+            webglAddon.dispose();
+          });
+          xterm.loadAddon(webglAddon);
+        } catch (e) {
+          console.warn(`[Terminal ${sessionId}] WebGL addon failed:`, e);
+        }
+      });
+
+      // Fit 和聚焦
+      setTimeout(() => {
+        if (fitAddon && xterm) {
+          fitAddon.fit();
+          const { cols, rows } = xterm;
+          window.terminal.resize({ id: terminalId, cols, rows });
+        }
+        syncInputPosition();
+      }, 100);
+
+      // 右键菜单处理
+      const handleContextMenu = (e: Event) => {
+        e.preventDefault();
+        const mouseEvent = e as MouseEvent;
+        const hasSelection = xterm.hasSelection();
+        setContextMenu({
+          x: mouseEvent.clientX,
+          y: mouseEvent.clientY,
+          hasSelection,
+        });
+      };
+
+      // 添加到 xterm 元素上
+      const xtermElement = containerRef.current.querySelector('.xterm');
+      if (xtermElement) {
+        xtermElement.addEventListener('contextmenu', handleContextMenu);
+      }
+
+      // 窗口 resize 处理
+      const handleResize = () => {
+        if (fitAddon && xterm) {
+          try {
+            fitAddon.fit();
+            const { cols, rows } = xterm;
+            window.terminal.resize({ id: terminalId, cols, rows });
+          } catch (e) {
+            console.error('[Terminal] Resize failed:', e);
+          }
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        console.log(`[Terminal ${sessionId}] Cleaning up resize listener and contextmenu`);
+        window.removeEventListener('resize', handleResize);
+        const xtermElement = containerRef.current?.querySelector('.xterm');
+        if (xtermElement) {
+          xtermElement.removeEventListener('contextmenu', handleContextMenu);
+        }
+      };
+    } catch (error) {
+      console.error(`[Terminal ${sessionId}] Open failed:`, error);
+    }
+  }, [xterm, xtermInstance, containerRef.current, sessionId, terminalId]);
+
+  // 设置输入 textarea (只在首次运行，之后保持存在)
+  useEffect(() => {
+    if (!xterm || !xtermInstance || !containerRef.current) return;
+    if (!xtermInstance.isOpened) return;
+    
+    // 如果已经有 textarea，不重复创建
+    if (hiddenInputRef.current) {
+      console.log(`[Terminal ${sessionId}] Hidden input already exists`);
+      return;
+    }
+    
+    console.log(`[Terminal ${sessionId}] Setting up hidden input`);
+    const cleanup = setupHiddenInput();
+    
+    // 只在组件真正卸载时清理（不在 isVisible 变化时清理）
+    return () => {
+      console.log(`[Terminal ${sessionId}] Cleaning up hidden input (component unmount)`);
+      if (cleanup) cleanup();
+    };
+  }, [xterm, xtermInstance, containerRef.current, sessionId]);
+
+  // 当 tab 变为 active 和 visible 时，调整大小和聚焦
+  useEffect(() => {
+    if (!isActive || !isVisible) return;
+    if (!xterm || !fitAddon || !hiddenInputRef.current) return;
+    
+    console.log(`[Terminal ${sessionId}] Tab became active and visible, fitting and focusing`);
+    
+    // 延迟一下，确保 DOM 已经渲染完成
+    const timer = setTimeout(() => {
+      if (fitAddon && xterm) {
+        try {
+          fitAddon.fit();
+          const { cols, rows } = xterm;
+          window.terminal.resize({ id: terminalId, cols, rows });
+        } catch (e) {
+          console.error('[Terminal] Fit failed:', e);
+        }
+      }
+      if (hiddenInputRef.current) {
+        hiddenInputRef.current.focus({ preventScroll: true });
+      }
+      syncInputPosition();
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [isActive, isVisible, xterm, fitAddon, terminalId, sessionId]);
 
   // 点击容器时聚焦到隐藏输入框
   const handleContainerClick = () => {
+    console.log(`[Terminal ${sessionId}] Container clicked`, {
+      isActive,
+      isVisible,
+      hasHiddenInput: !!hiddenInputRef.current
+    });
     if (isActive && isVisible && hiddenInputRef.current) {
       hiddenInputRef.current.focus({ preventScroll: true });
+      console.log(`[Terminal ${sessionId}] Focused hidden input`);
     }
   };
   
@@ -613,15 +643,23 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [isActive, isVisible]);
 
   const handleSearch = (term: string, forward: boolean = true) => {
-    if (!searchAddonRef.current || !term) return;
-    if (forward) searchAddonRef.current.findNext(term, { incremental: false });
-    else searchAddonRef.current.findPrevious(term, { incremental: false });
+    if (!searchAddon || !term) return;
+    if (forward) searchAddon.findNext(term, { incremental: false });
+    else searchAddon.findPrevious(term, { incremental: false });
   };
 
-  const handleCopy = () => {
-    if (!xtermRef.current) return;
-    const selection = xtermRef.current.getSelection();
-    if (selection) navigator.clipboard.writeText(selection);
+  const handleCopy = async () => {
+    if (!xterm) return;
+    const selection = xterm.getSelection();
+    console.log('[Terminal] Copy triggered, selection:', selection);
+    if (selection) {
+      try {
+        await navigator.clipboard.writeText(selection);
+        console.log('[Terminal] Copy successful');
+      } catch (err) {
+        console.error('[Terminal] Copy failed:', err);
+      }
+    }
     setContextMenu(null);
   };
 
@@ -638,12 +676,12 @@ const Terminal: React.FC<TerminalProps> = ({
   };
 
   const handleClear = () => {
-    if (xtermRef.current) xtermRef.current.clear();
+    if (xterm) xterm.clear();
     setContextMenu(null);
   };
 
   const handleSelectAll = () => {
-    if (xtermRef.current) xtermRef.current.selectAll();
+    if (xterm) xterm.selectAll();
     setContextMenu(null);
   };
 
@@ -654,6 +692,11 @@ const Terminal: React.FC<TerminalProps> = ({
       return () => window.removeEventListener('click', handleClick);
     }
   }, [contextMenu]);
+
+  // 如果 xterm 实例不存在，不渲染
+  if (!xterm) {
+    return null;
+  }
 
   return (
     <>

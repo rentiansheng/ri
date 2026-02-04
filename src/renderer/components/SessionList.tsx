@@ -76,14 +76,6 @@ const SessionList: React.FC = () => {
     notifyStore.clearSession(id);  // Clear all notifications for this session
   };
 
-  const handleCloseTab = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    // Only close tab if session is visible
-    if (visibleSessionIds.includes(id)) {
-      closeTab(id);
-    }
-  };
-
   const handleDeleteSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     
@@ -226,15 +218,6 @@ const SessionList: React.FC = () => {
                 )}
               </div>
               <div className="session-item-actions">
-                {visibleSessionIds.includes(session.id) && (
-                  <button
-                    className="session-item-action"
-                    onClick={(e) => handleCloseTab(e, session.id)}
-                    title="Close Tab"
-                  >
-                    ×
-                  </button>
-                )}
                 <button
                   className="session-item-action session-item-delete"
                   onClick={(e) => handleDeleteSession(e, session.id)}
