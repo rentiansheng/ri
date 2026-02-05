@@ -21,8 +21,7 @@ export const RINotificationPlugin: Plugin = async (ctx) => {
   // 立即写入日志，证明插件被调用了
   try {
     const timestamp = new Date().toISOString();
-    appendFileSync("/tmp/ri.log", `[${timestamp}] RINotificationPlugin called\n`);
-  } catch (e) {
+   } catch (e) {
     // 忽略写入错误
   }
   
@@ -80,15 +79,54 @@ export const RINotificationPlugin: Plugin = async (ctx) => {
   
   appendFileSync("/tmp/ri.log", `[${new Date().toISOString()}] ✅ Plugin enabled, initializing handlers\n`);
 
-  
-  appendFileSync("/tmp/ri.log", `[${new Date().toISOString()}] ✅ Notifier and handlers initialized\n`);
   // 3. 初始化通知器
   const notifier = new RINotifier($, detector, config);
   
   // 4. 初始化事件处理器
   const handlers = new EventHandlers(notifier, config);
+  
+  appendFileSync("/tmp/ri.log", `[${new Date().toISOString()}] ✅ Notifier and handlers initialized\n`);
+  
+  // 5. 劫持stdout来捕获plan模式的输出
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  let outputBuffer = '';
+  let lastOutputTime = Date.now();
+  
+  (process.stdout.write as any) = function(chunk: any, ...args: any[]): boolean {
+    const result = originalWrite(chunk, ...args);
+    
+    // 记录输出到日志
+    if (typeof chunk === 'string') {
+      outputBuffer += chunk;
+      lastOutputTime = Date.now();
+      
+      // 检测plan模式的特征输出
+      if (chunk.includes('## Summary') || 
+          chunk.includes('## Changes') || 
+          chunk.includes('## Implementation Plan') ||
+          chunk.includes('## Next Steps')) {
+        appendFileSync("/tmp/ri.log", `[${new Date().toISOString()}] 📝 Detected plan output\n`);
+        
+        // 延迟发送通知，避免在输出过程中打断
+        setTimeout(async () => {
+          const now = Date.now();
+          // 如果已经0.5秒没有新输出，认为plan已经完成
+          if (now - lastOutputTime >= 500) {
+            appendFileSync("/tmp/ri.log", `[${new Date().toISOString()}] 📤 Sending plan completion notification\n`);
+            await notifier.send({
+              type: "completed",
+              message: "OpenCode 规划完成",
+            });
+            outputBuffer = ''; // 清空缓冲区
+          }
+        }, 600);
+      }
+    }
+    
+    return result;
+  };
 
-  // 5. 记录插件激活
+  // 6. 记录插件激活
   await client.app.log({
     service: "ri-notification",
     level: "info",
@@ -105,7 +143,7 @@ export const RINotificationPlugin: Plugin = async (ctx) => {
   // 发送激活通知（仅用于调试，生产环境可注释）
   // await notifier.info("OpenCode 通知插件已激活");
 
-  // 6. 返回事件钩子
+  // 7. 返回事件钩子
   return {
     // 任务完成
     "session.idle": handlers.onSessionIdle.bind(handlers),
@@ -121,6 +159,9 @@ export const RINotificationPlugin: Plugin = async (ctx) => {
     
     // 权限请求
     "permission.asked": handlers.onPermissionAsked.bind(handlers),
+    "permission.replied": handlers.onPermissionReplied.bind(handlers),
+    "message.received": handlers.onMessageReceived.bind(handlers),
+    "message.updated": handlers.onMessageUpdated.bind(handlers),
   };
 };
 

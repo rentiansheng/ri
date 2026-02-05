@@ -17,14 +17,13 @@ export interface NotificationConfig {
     permissionAsked: boolean;
     longRunningCommand: boolean;
   };
-  buildCommands: string[];
-  testCommands: string[];
+ 
   messageTemplates: Record<string, string>;
 }
 
 const DEFAULT_CONFIG: NotificationConfig = {
   enabled: true,
-  minDuration: 30000, // 30 seconds
+  minDuration: 10000, // 10 seconds
   events: {
     sessionIdle: true,
     buildComplete: true,
@@ -33,36 +32,9 @@ const DEFAULT_CONFIG: NotificationConfig = {
     permissionAsked: true,
     longRunningCommand: true,
   },
-  buildCommands: [
-    "npm run build",
-    "yarn build",
-    "pnpm build",
-    "bun run build",
-    "make",
-    "make build",
-    "cargo build",
-    "go build",
-    "mvn package",
-    "gradle build",
-  ],
-  testCommands: [
-    "npm test",
-    "npm run test",
-    "yarn test",
-    "pnpm test",
-    "bun test",
-    "pytest",
-    "cargo test",
-    "go test",
-    "mvn test",
-    "gradle test",
-  ],
+ 
   messageTemplates: {
     sessionIdle: "任务已完成",
-    buildSuccess: "构建成功 ✓",
-    buildError: "构建失败 ✗",
-    testSuccess: "测试通过 ✓",
-    testError: "测试失败 ✗",
     permissionAsked: "需要授权: {tool}",
     longCommand: "命令执行完成 ({duration}s)",
   },

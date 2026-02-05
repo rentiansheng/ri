@@ -730,7 +730,8 @@ const OpencodeSettings: React.FC = () => {
         </div>
       </div>
       
-      <div className="opencode-section">
+      {/* RI Notification Plugin - Hidden */}
+      <div className="opencode-section" style={{ display: 'none' }}>
         <h3>RI Notification Plugin</h3>
         
         <div className="opencode-plugin-info">
@@ -903,8 +904,8 @@ const OpencodeSettings: React.FC = () => {
                 </div>
               )}
               
-              {/* Configuration Status */}
-              {pluginInfo.plugin?.installed && configStatus && (
+              {/* Configuration Status - Hidden */}
+              {false && pluginInfo.plugin?.installed && configStatus && (
                 <div className="opencode-plugin-config-status">
                   <h4>Configuration Status</h4>
                   

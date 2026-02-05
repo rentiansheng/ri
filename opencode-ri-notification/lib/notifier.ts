@@ -25,7 +25,10 @@ export class RINotifier {
    * 使用 OSC 不可见序列，不干扰终端输出
    */
   async send(payload: NotificationPayload): Promise<void> {
+    const { appendFileSync } = await import('fs');
     const { type, message } = payload;
+    
+    appendFileSync('/tmp/ri.log', `[${new Date().toISOString()}] 📤 Sending notification: ${type} - ${message}\n`);
     
     // 格式化消息模板
     const formattedMessage = this.formatMessage(message, payload);
@@ -34,19 +37,25 @@ export class RINotifier {
     // 格式: \x1b]__OM_NOTIFY:type:message__\x07
     const oscSequence = `\x1b]__OM_NOTIFY:${type}:${formattedMessage}__\x07`;
     
+    appendFileSync('/tmp/ri.log', `[${new Date().toISOString()}] OSC sequence: ${JSON.stringify(oscSequence)}\n`);
+    
     try {
-      // 输出到终端，RI 会自动捕获
-      await this.$`printf ${oscSequence}`;
+      // 方法1: 直接输出到 stdout (最可靠)
+      process.stdout.write(oscSequence);
+      appendFileSync('/tmp/ri.log', `[${new Date().toISOString()}] ✅ Notification sent via stdout\n`);
       
       console.log(`[RINotification] Sent: ${type} - ${formattedMessage}`);
     } catch (error) {
+      appendFileSync('/tmp/ri.log', `[${new Date().toISOString()}] ❌ Failed to send via stdout: ${error}\n`);
       console.error(`[RINotification] Failed to send notification:`, error);
       
       // Fallback: 使用可见文本格式
       try {
         const visibleFormat = `__OM_NOTIFY:${type}:${formattedMessage}__`;
-        await this.$`echo ${visibleFormat}`;
+        process.stdout.write(visibleFormat + '\n');
+        appendFileSync('/tmp/ri.log', `[${new Date().toISOString()}] ✅ Fallback notification sent\n`);
       } catch (fallbackError) {
+        appendFileSync('/tmp/ri.log', `[${new Date().toISOString()}] ❌ Fallback also failed: ${fallbackError}\n`);
         console.error(`[RINotification] Fallback also failed:`, fallbackError);
       }
     }
