@@ -116,16 +116,26 @@ class NotificationManager {
     }
 
     // 3. 发送到外部渠道
+    console.log('[NotificationManager] Attempting to send to external channels:', Object.keys(this.channels));
+    
     const externalPromises = Object.keys(this.channels).map(async (channelType) => {
       try {
         const channel = this.channels[channelType];
+        console.log(`[NotificationManager] Checking ${channelType} channel...`);
+        
         if (channel && channel.isEnabled()) {
+          console.log(`[NotificationManager] ${channelType} is enabled, sending notification...`);
+          console.log(`[NotificationManager] ${channelType} payload:`, { title, body, type, sessionName });
+          
           const result = await channel.send(payload);
           results.external[channelType] = result;
-          console.log(`[NotificationManager] ${channelType} notification sent`);
+          console.log(`[NotificationManager] ✅ ${channelType} notification sent successfully:`, result);
+        } else {
+          console.log(`[NotificationManager] ${channelType} channel is disabled or not initialized`);
         }
       } catch (error) {
-        console.error(`[NotificationManager] ${channelType} notification failed:`, error.message);
+        console.error(`[NotificationManager] ❌ ${channelType} notification failed:`, error.message);
+        console.error(`[NotificationManager] ${channelType} error stack:`, error.stack);
         results.external[channelType] = { success: false, error: error.message };
       }
     });

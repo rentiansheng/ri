@@ -28,6 +28,13 @@ const OpencodeSettings: React.FC = () => {
   } | null>(null);
   const [pluginInstalling, setPluginInstalling] = useState(false);
   
+  // Plugin configuration status
+  const [configStatus, setConfigStatus] = useState<{
+    enabled: boolean;
+    configExists: boolean;
+    configValid: boolean;
+  } | null>(null);
+  
   // Installation detection state
   const [installations, setInstallations] = useState<OpencodeInstallation[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -109,6 +116,20 @@ const OpencodeSettings: React.FC = () => {
           plugin: result.plugin,
           opencode: result.opencode,
         });
+        
+        // Load configuration status if plugin is installed
+        if (result.plugin?.installed) {
+          const configResult = await window.opencodePlugin.checkConfig();
+          if (configResult.success) {
+            setConfigStatus({
+              enabled: configResult.enabled,
+              configExists: configResult.configExists,
+              configValid: configResult.configValid
+            });
+          }
+        } else {
+          setConfigStatus(null);
+        }
         
         // Load cached installations if OpenCode is installed
         if (result.opencode?.installed) {
@@ -471,16 +492,42 @@ const OpencodeSettings: React.FC = () => {
     try {
       const result = await window.opencodePlugin.install();
       if (result.success) {
-        notifyStore.addNotification({
-          id: Date.now().toString(),
-          sessionId: 'opencode',
-          sessionName: 'OpenCode',
-          title: 'Plugin Installed',
-          body: 'OpenCode RI notification plugin installed successfully',
-          type: 'success',
-          timestamp: Date.now(),
-          read: false
-        });
+        // Check if configuration was updated
+        if (result.configUpdated) {
+          notifyStore.addNotification({
+            id: Date.now().toString(),
+            sessionId: 'opencode',
+            sessionName: 'OpenCode',
+            title: 'Plugin Installed & Configured',
+            body: 'OpenCode RI notification plugin installed and enabled successfully',
+            type: 'success',
+            timestamp: Date.now(),
+            read: false
+          });
+        } else if (result.warning) {
+          notifyStore.addNotification({
+            id: Date.now().toString(),
+            sessionId: 'opencode',
+            sessionName: 'OpenCode',
+            title: 'Plugin Installed',
+            body: result.warning,
+            type: 'warning',
+            timestamp: Date.now(),
+            read: false
+          });
+        } else {
+          notifyStore.addNotification({
+            id: Date.now().toString(),
+            sessionId: 'opencode',
+            sessionName: 'OpenCode',
+            title: 'Plugin Installed',
+            body: 'OpenCode RI notification plugin installed successfully',
+            type: 'success',
+            timestamp: Date.now(),
+            read: false
+          });
+        }
+        
         // Reload plugin info
         await loadPluginInfo();
       } else {
@@ -864,6 +911,144 @@ const OpencodeSettings: React.FC = () => {
                   </div>
                   <div className="opencode-plugin-status-value">
                     <code className="opencode-plugin-path">{pluginInfo.plugin.path}</code>
+                  </div>
+                </div>
+              )}
+              
+              {/* Configuration Status */}
+              {pluginInfo.plugin?.installed && configStatus && (
+                <div className="opencode-plugin-config-status">
+                  <h4>Configuration Status</h4>
+                  
+                  <div className="opencode-config-status-grid">
+                    <div className="opencode-config-status-item">
+                      <span className="opencode-config-label">Config File:</span>
+                      <span className={`opencode-config-value ${configStatus.configExists ? 'ok' : 'missing'}`}>
+                        {configStatus.configExists ? '✓ Exists' : '✗ Missing'}
+                      </span>
+                    </div>
+                    
+                    <div className="opencode-config-status-item">
+                      <span className="opencode-config-label">Format:</span>
+                      <span className={`opencode-config-value ${configStatus.configValid ? 'ok' : 'invalid'}`}>
+                        {configStatus.configValid ? '✓ Valid' : '✗ Invalid'}
+                      </span>
+                    </div>
+                    
+                    <div className="opencode-config-status-item">
+                      <span className="opencode-config-label">Plugin Enabled:</span>
+                      <span className={`opencode-config-value ${configStatus.enabled ? 'ok' : 'disabled'}`}>
+                        {configStatus.enabled ? '✓ Yes' : '✗ No'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Warning if plugin not enabled */}
+                  {!configStatus.enabled && (
+                    <div className="opencode-config-warning">
+                      <span className="warning-icon">⚠️</span>
+                      <div className="warning-content">
+                        <strong>Plugin Not Enabled</strong>
+                        <p>The plugin files are installed but not enabled in OpenCode configuration.</p>
+                      </div>
+                      <button
+                        className="opencode-btn-fix"
+                        onClick={async () => {
+                          try {
+                            const result = await window.opencodePlugin.enableConfig();
+                            if (result.success) {
+                              notifyStore.addNotification({
+                                id: Date.now().toString(),
+                                sessionId: 'opencode',
+                                sessionName: 'OpenCode',
+                                title: 'Configuration Updated',
+                                body: 'Plugin enabled in OpenCode configuration',
+                                type: 'success',
+                                timestamp: Date.now(),
+                                read: false
+                              });
+                              await loadPluginInfo();
+                            } else {
+                              throw new Error(result.error || 'Failed to enable config');
+                            }
+                          } catch (error: any) {
+                            notifyStore.addNotification({
+                              id: Date.now().toString(),
+                              sessionId: 'opencode',
+                              sessionName: 'OpenCode',
+                              title: 'Failed to Update Config',
+                              body: error.message,
+                              type: 'error',
+                              timestamp: Date.now(),
+                              read: false
+                            });
+                          }
+                        }}
+                      >
+                        Enable Now
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Manual configuration actions */}
+                  <div className="opencode-config-actions">
+                    <button
+                      className="opencode-btn-secondary"
+                      onClick={() => window.opencodePlugin.openConfig()}
+                      title="Open OpenCode configuration file"
+                    >
+                      📝 Edit Config Manually
+                    </button>
+                    
+                    {configStatus.enabled && (
+                      <button
+                        className="opencode-btn-secondary"
+                        onClick={async () => {
+                          if (confirm('Disable plugin in OpenCode configuration?')) {
+                            try {
+                              const result = await window.opencodePlugin.disableConfig();
+                              if (result.success) {
+                                notifyStore.addNotification({
+                                  id: Date.now().toString(),
+                                  sessionId: 'opencode',
+                                  sessionName: 'OpenCode',
+                                  title: 'Configuration Updated',
+                                  body: 'Plugin disabled in OpenCode configuration',
+                                  type: 'success',
+                                  timestamp: Date.now(),
+                                  read: false
+                                });
+                                await loadPluginInfo();
+                              } else {
+                                throw new Error(result.error || 'Failed to disable config');
+                              }
+                            } catch (error: any) {
+                              notifyStore.addNotification({
+                                id: Date.now().toString(),
+                                sessionId: 'opencode',
+                                sessionName: 'OpenCode',
+                                title: 'Failed to Update Config',
+                                body: error.message,
+                                type: 'error',
+                                timestamp: Date.now(),
+                                read: false
+                              });
+                            }
+                          }
+                        }}
+                        title="Remove plugin from configuration"
+                      >
+                        Disable Plugin
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Backup info */}
+                  <div className="opencode-backup-info">
+                    <small>
+                      💾 Configuration changes are automatically backed up to{' '}
+                      <code>~/.config/opencode/opencode.json.backup.*</code>
+                    </small>
                   </div>
                 </div>
               )}

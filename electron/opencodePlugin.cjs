@@ -442,15 +442,249 @@ class OpencodePluginManager {
         }
       }
       
+      // Check config status
+      const configStatus = await this.checkPluginConfig();
+      
       return {
         installed,
         path: this.targetPath,
         version: version || (installed ? 'unknown' : null),
         sourcePath: this.sourcePath,
+        configEnabled: configStatus.enabled,
+        configExists: configStatus.configExists,
+        configValid: configStatus.configValid,
       };
     } catch (error) {
       console.error('[OpencodePlugin] Check failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 读取 OpenCode 配置文件
+   */
+  async readOpencodeConfig() {
+    try {
+      if (await fs.pathExists(this.opencodeConfigPath)) {
+        const configContent = await fs.readJson(this.opencodeConfigPath);
+        console.log('[OpencodePlugin] OpenCode config loaded');
+        return configContent;
+      }
+      
+      // 返回默认配置
+      console.log('[OpencodePlugin] OpenCode config not found, using default');
+      return { "$schema": "https://opencode.ai/config.json" };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to read OpenCode config:', error);
+      // 如果 JSON 格式错误，也返回默认配置
+      return { "$schema": "https://opencode.ai/config.json" };
+    }
+  }
+
+  /**
+   * 备份 OpenCode 配置文件
+   */
+  async backupOpencodeConfig() {
+    try {
+      if (!await fs.pathExists(this.opencodeConfigPath)) {
+        console.log('[OpencodePlugin] No config to backup');
+        return { success: true, backed: false };
+      }
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('_').split('-').slice(0, 3).join('') + '_' + new Date().toTimeString().split(' ')[0].replace(/:/g, '');
+      const backupPath = `${this.opencodeConfigPath}.backup.${timestamp}`;
+      
+      await fs.copy(this.opencodeConfigPath, backupPath);
+      console.log(`[OpencodePlugin] Config backed up to: ${backupPath}`);
+      
+      return { success: true, backed: true, backupPath };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to backup config:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 写入 OpenCode 配置文件
+   */
+  async writeOpencodeConfig(config) {
+    try {
+      // 确保目录存在
+      await fs.ensureDir(path.dirname(this.opencodeConfigPath));
+      
+      // 写入配置
+      await fs.writeJson(this.opencodeConfigPath, config, { spaces: 2 });
+      console.log('[OpencodePlugin] OpenCode config written successfully');
+      
+      return { success: true };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to write OpenCode config:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 检查插件在配置中的状态
+   */
+  async checkPluginConfig() {
+    try {
+      const configExists = await fs.pathExists(this.opencodeConfigPath);
+      
+      if (!configExists) {
+        return {
+          success: true,
+          enabled: false,
+          configExists: false,
+          configValid: false,
+        };
+      }
+      
+      let config;
+      let configValid = true;
+      
+      try {
+        config = await this.readOpencodeConfig();
+      } catch (error) {
+        configValid = false;
+        return {
+          success: true,
+          enabled: false,
+          configExists: true,
+          configValid: false,
+        };
+      }
+      
+      // 检查插件是否在 plugin 数组中
+      const enabled = Array.isArray(config.plugin) && config.plugin.includes(this.pluginName);
+      
+      return {
+        success: true,
+        enabled,
+        configExists: true,
+        configValid: true,
+      };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to check plugin config:', error);
+      return {
+        success: false,
+        error: error.message,
+        enabled: false,
+        configExists: false,
+        configValid: false,
+      };
+    }
+  }
+
+  /**
+   * 在配置中启用插件
+   */
+  async enablePluginInConfig() {
+    try {
+      console.log('[OpencodePlugin] Enabling plugin in OpenCode config...');
+      
+      // 备份配置
+      await this.backupOpencodeConfig();
+      
+      // 读取现有配置
+      const config = await this.readOpencodeConfig();
+      
+      // 确保有 plugin 数组
+      if (!config.plugin) {
+        config.plugin = [];
+      }
+      
+      // 检查插件是否已在列表中
+      if (config.plugin.includes(this.pluginName)) {
+        console.log('[OpencodePlugin] Plugin already enabled in config');
+        return { success: true, added: false };
+      }
+      
+      // 添加插件
+      config.plugin.push(this.pluginName);
+      
+      // 写入配置
+      const writeResult = await this.writeOpencodeConfig(config);
+      if (!writeResult.success) {
+        throw new Error(writeResult.error || 'Failed to write config');
+      }
+      
+      console.log(`[OpencodePlugin] Plugin enabled in config: ${this.pluginName}`);
+      return { success: true, added: true };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to enable plugin in config:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * 在配置中禁用插件
+   */
+  async disablePluginInConfig() {
+    try {
+      console.log('[OpencodePlugin] Disabling plugin in OpenCode config...');
+      
+      // 备份配置
+      await this.backupOpencodeConfig();
+      
+      // 读取现有配置
+      const config = await this.readOpencodeConfig();
+      
+      if (!config.plugin || !Array.isArray(config.plugin)) {
+        console.log('[OpencodePlugin] No plugin array in config');
+        return { success: true, removed: false };
+      }
+      
+      // 检查插件是否在列表中
+      const index = config.plugin.indexOf(this.pluginName);
+      if (index === -1) {
+        console.log('[OpencodePlugin] Plugin not found in config');
+        return { success: true, removed: false };
+      }
+      
+      // 移除插件
+      config.plugin.splice(index, 1);
+      
+      // 写入配置
+      const writeResult = await this.writeOpencodeConfig(config);
+      if (!writeResult.success) {
+        throw new Error(writeResult.error || 'Failed to write config');
+      }
+      
+      console.log(`[OpencodePlugin] Plugin disabled in config: ${this.pluginName}`);
+      return { success: true, removed: true };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to disable plugin in config:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * 打开 OpenCode 配置文件
+   */
+  async openOpencodeConfig() {
+    try {
+      // 确保配置文件存在
+      if (!await fs.pathExists(this.opencodeConfigPath)) {
+        // 创建默认配置
+        const defaultConfig = { "$schema": "https://opencode.ai/config.json" };
+        await this.writeOpencodeConfig(defaultConfig);
+      }
+      
+      await shell.openPath(this.opencodeConfigPath);
+      console.log('[OpencodePlugin] Opened OpenCode config file');
+      return { success: true };
+    } catch (error) {
+      console.error('[OpencodePlugin] Failed to open config:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
@@ -491,11 +725,29 @@ class OpencodePluginManager {
         }
       });
       
-      console.log('[OpencodePlugin] Plugin installed successfully');
+      console.log('[OpencodePlugin] Plugin files installed successfully');
+      
+      // 自动启用插件配置
+      console.log('[OpencodePlugin] Enabling plugin in OpenCode config...');
+      const enableResult = await this.enablePluginInConfig();
+      
+      if (!enableResult.success) {
+        console.warn('[OpencodePlugin] Plugin installed but failed to enable in config:', enableResult.error);
+        return {
+          success: true,
+          path: this.targetPath,
+          configUpdated: false,
+          warning: 'Plugin installed but not automatically enabled in config. Please add manually.'
+        };
+      }
+      
+      console.log('[OpencodePlugin] Plugin installed and enabled successfully');
       
       return {
         success: true,
         path: this.targetPath,
+        configUpdated: true,
+        configAdded: enableResult.added,
       };
     } catch (error) {
       console.error('[OpencodePlugin] Install failed:', error);
@@ -513,10 +765,17 @@ class OpencodePluginManager {
     try {
       console.log('[OpencodePlugin] Uninstalling plugin...');
       
+      // 先禁用配置
+      console.log('[OpencodePlugin] Disabling plugin in OpenCode config...');
+      await this.disablePluginInConfig();
+      
+      // 删除插件文件
       if (await fs.pathExists(this.targetPath)) {
         await fs.remove(this.targetPath);
-        console.log('[OpencodePlugin] Plugin uninstalled successfully');
+        console.log('[OpencodePlugin] Plugin files removed successfully');
       }
+      
+      console.log('[OpencodePlugin] Plugin uninstalled successfully');
       
       return {
         success: true,

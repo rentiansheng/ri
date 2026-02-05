@@ -411,6 +411,10 @@ class WeComChannel extends NotificationChannel {
 
   _sendWebhook(url, payload) {
     return new Promise((resolve, reject) => {
+      console.log('[WeComChannel] Sending webhook request...');
+      console.log('[WeComChannel] URL:', url.replace(/key=([^&]+)/, 'key=***')); // 隐藏 key
+      console.log('[WeComChannel] Payload:', JSON.stringify(payload, null, 2));
+      
       const urlObj = new URL(url);
       const options = {
         hostname: urlObj.hostname,
@@ -424,31 +428,47 @@ class WeComChannel extends NotificationChannel {
 
       // 添加代理支持
       if (this.proxyAgent) {
+        console.log('[WeComChannel] Using proxy agent');
         options.agent = this.proxyAgent;
       }
 
       const req = https.request(options, (res) => {
         let data = '';
+        console.log('[WeComChannel] Response status:', res.statusCode);
+        
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
+          console.log('[WeComChannel] Response data:', data);
+          
           if (res.statusCode >= 200 && res.statusCode < 300) {
-            const result = JSON.parse(data);
-            if (result.errcode === 0) {
-              resolve({ success: true, response: data });
-            } else {
-              reject(new Error(`WeCom API error: ${result.errmsg}`));
+            try {
+              const result = JSON.parse(data);
+              if (result.errcode === 0) {
+                console.log('[WeComChannel] ✅ Message sent successfully');
+                resolve({ success: true, response: data });
+              } else {
+                console.error('[WeComChannel] ❌ API error:', result.errmsg);
+                reject(new Error(`WeCom API error: ${result.errmsg} (errcode: ${result.errcode})`));
+              }
+            } catch (parseError) {
+              console.error('[WeComChannel] ❌ Failed to parse response:', parseError.message);
+              reject(new Error(`WeCom response parse error: ${parseError.message}`));
             }
           } else {
+            console.error('[WeComChannel] ❌ HTTP error:', res.statusCode, data);
             reject(new Error(`WeCom HTTP error: ${res.statusCode} ${data}`));
           }
         });
       });
 
       req.on('error', (error) => {
+        console.error('[WeComChannel] ❌ Request failed:', error.message);
         reject(new Error(`WeCom request failed: ${error.message}`));
       });
 
-      req.write(JSON.stringify(payload));
+      const payloadStr = JSON.stringify(payload);
+      console.log('[WeComChannel] Sending request body length:', payloadStr.length);
+      req.write(payloadStr);
       req.end();
     });
   }

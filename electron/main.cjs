@@ -275,6 +275,49 @@ ipcMain.handle('opencode-plugin:remove-custom-path', async (event, customPath) =
   }
 });
 
+// OpenCode configuration management handlers
+ipcMain.handle('opencode-plugin:check-config', async () => {
+  try {
+    return await opencodePluginManager.checkPluginConfig();
+  } catch (error) {
+    console.error('[Main] Failed to check plugin config:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      enabled: false,
+      configExists: false,
+      configValid: false
+    };
+  }
+});
+
+ipcMain.handle('opencode-plugin:enable-config', async () => {
+  try {
+    return await opencodePluginManager.enablePluginInConfig();
+  } catch (error) {
+    console.error('[Main] Failed to enable plugin config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:disable-config', async () => {
+  try {
+    return await opencodePluginManager.disablePluginInConfig();
+  } catch (error) {
+    console.error('[Main] Failed to disable plugin config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('opencode-plugin:open-config', async () => {
+  try {
+    return await opencodePluginManager.openOpencodeConfig();
+  } catch (error) {
+    console.error('[Main] Failed to open plugin config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Start watching config file for changes (hot reload)
 configManager.watchConfig();
 

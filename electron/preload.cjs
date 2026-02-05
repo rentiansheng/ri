@@ -122,5 +122,10 @@ contextBridge.exposeInMainWorld('opencodePlugin', {
   setActive: (installationId) => ipcRenderer.invoke('opencode-plugin:set-active', installationId),
   addCustomPath: (path) => ipcRenderer.invoke('opencode-plugin:add-custom-path', path),
   removeCustomPath: (path) => ipcRenderer.invoke('opencode-plugin:remove-custom-path', path),
+  // Configuration management methods
+  checkConfig: () => ipcRenderer.invoke('opencode-plugin:check-config'),
+  enableConfig: () => ipcRenderer.invoke('opencode-plugin:enable-config'),
+  disableConfig: () => ipcRenderer.invoke('opencode-plugin:disable-config'),
+  openConfig: () => ipcRenderer.invoke('opencode-plugin:open-config'),
 });
 

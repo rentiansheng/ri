@@ -265,6 +265,9 @@ export interface OpencodePluginInfo {
   path: string;
   version: string | null;
   sourcePath?: string;
+  configEnabled?: boolean;
+  configExists?: boolean;
+  configValid?: boolean;
 }
 
 export interface OpencodeInstallation {
@@ -280,7 +283,7 @@ export interface OpencodeInstallation {
 
 export interface OpencodePluginAPI {
   check: () => Promise<{ success: boolean; installed?: boolean; path?: string; version?: string; error?: string }>;
-  install: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  install: () => Promise<{ success: boolean; path?: string; configUpdated?: boolean; configAdded?: boolean; warning?: string; error?: string }>;
   uninstall: () => Promise<{ success: boolean; error?: string }>;
   openDir: () => Promise<{ success: boolean; error?: string }>;
   openDocs: () => Promise<{ success: boolean; error?: string }>;
@@ -320,6 +323,28 @@ export interface OpencodePluginAPI {
     error?: string;
   }>;
   removeCustomPath: (path: string) => Promise<{ 
+    success: boolean; 
+    error?: string;
+  }>;
+  // Configuration management methods
+  checkConfig: () => Promise<{ 
+    success: boolean; 
+    enabled: boolean;
+    configExists: boolean;
+    configValid: boolean;
+    error?: string;
+  }>;
+  enableConfig: () => Promise<{ 
+    success: boolean; 
+    added?: boolean;
+    error?: string;
+  }>;
+  disableConfig: () => Promise<{ 
+    success: boolean; 
+    removed?: boolean;
+    error?: string;
+  }>;
+  openConfig: () => Promise<{ 
     success: boolean; 
     error?: string;
   }>;
