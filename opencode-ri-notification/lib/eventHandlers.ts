@@ -3,8 +3,8 @@
  * 监听各种 OpenCode 事件并触发通知
  */
 
-import type { RINotifier } from "./notifier";
-import type { NotificationConfig } from "./config";
+import type { RINotifier } from "./notifier.js";
+import type { NotificationConfig } from "./config.js";
 
 export class EventHandlers {
   // 记录命令开始时间，用于计算执行时长

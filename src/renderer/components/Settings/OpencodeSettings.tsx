@@ -117,19 +117,7 @@ const OpencodeSettings: React.FC = () => {
           opencode: result.opencode,
         });
         
-        // Load configuration status if plugin is installed
-        if (result.plugin?.installed) {
-          const configResult = await window.opencodePlugin.checkConfig();
-          if (configResult.success) {
-            setConfigStatus({
-              enabled: configResult.enabled,
-              configExists: configResult.configExists,
-              configValid: configResult.configValid
-            });
-          }
-        } else {
-          setConfigStatus(null);
-        }
+        // 本地插件会被 OpenCode 自动发现，无需检查配置状态
         
         // Load cached installations if OpenCode is installed
         if (result.opencode?.installed) {

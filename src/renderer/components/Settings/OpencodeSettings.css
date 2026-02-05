@@ -2,6 +2,8 @@
 .opencode-settings {
   padding: 1.5rem;
   max-width: 900px;
+  min-height: 100%; /* 确保占满可用空间 */
+  padding-bottom: 3rem; /* 底部留出额外空间，确保最后的内容可见 */
 }
 
 /* Section */

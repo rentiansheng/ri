@@ -442,17 +442,14 @@ class OpencodePluginManager {
         }
       }
       
-      // Check config status
-      const configStatus = await this.checkPluginConfig();
-      
+      // 本地插件无需配置，返回简化的状态
       return {
         installed,
         path: this.targetPath,
         version: version || (installed ? 'unknown' : null),
         sourcePath: this.sourcePath,
-        configEnabled: configStatus.enabled,
-        configExists: configStatus.configExists,
-        configValid: configStatus.configValid,
+        // 本地插件会被 OpenCode 自动发现，无需配置状态
+        autoDiscovered: installed,
       };
     } catch (error) {
       console.error('[OpencodePlugin] Check failed:', error);
@@ -727,27 +724,14 @@ class OpencodePluginManager {
       
       console.log('[OpencodePlugin] Plugin files installed successfully');
       
-      // 自动启用插件配置
-      console.log('[OpencodePlugin] Enabling plugin in OpenCode config...');
-      const enableResult = await this.enablePluginInConfig();
-      
-      if (!enableResult.success) {
-        console.warn('[OpencodePlugin] Plugin installed but failed to enable in config:', enableResult.error);
-        return {
-          success: true,
-          path: this.targetPath,
-          configUpdated: false,
-          warning: 'Plugin installed but not automatically enabled in config. Please add manually.'
-        };
-      }
-      
-      console.log('[OpencodePlugin] Plugin installed and enabled successfully');
+      // 注意：本地插件会被 OpenCode 自动发现，无需在 opencode.json 中声明
+      // 只有从 npm 安装的插件才需要在配置中声明包名
+      console.log('[OpencodePlugin] Local plugin will be auto-discovered by OpenCode');
       
       return {
         success: true,
         path: this.targetPath,
-        configUpdated: true,
-        configAdded: enableResult.added,
+        note: 'Local plugin installed. OpenCode will auto-discover it on next startup.'
       };
     } catch (error) {
       console.error('[OpencodePlugin] Install failed:', error);
@@ -765,11 +749,7 @@ class OpencodePluginManager {
     try {
       console.log('[OpencodePlugin] Uninstalling plugin...');
       
-      // 先禁用配置
-      console.log('[OpencodePlugin] Disabling plugin in OpenCode config...');
-      await this.disablePluginInConfig();
-      
-      // 删除插件文件
+      // 删除插件文件（本地插件无需修改配置）
       if (await fs.pathExists(this.targetPath)) {
         await fs.remove(this.targetPath);
         console.log('[OpencodePlugin] Plugin files removed successfully');

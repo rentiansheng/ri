@@ -3,8 +3,8 @@
  * 通过 __OM_NOTIFY 协议发送通知到 RI 终端
  */
 
-import type { RIDetector } from "./detector";
-import type { NotificationConfig } from "./config";
+import type { RIDetector } from "./detector.js";
+import type { NotificationConfig } from "./config.js";
 
 export interface NotificationPayload {
   type: "info" | "success" | "error" | "completed";

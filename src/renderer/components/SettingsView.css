@@ -2,9 +2,10 @@
 .settings-view {
   display: flex;
   flex-direction: column;
+  min-height: 100%; /* 改为 min-height，允许内容扩展 */
   height: 100%;
   background: #1e1e1e;
-  overflow: hidden;
+  overflow: visible; /* 改为 visible，让子元素处理滚动 */
   width: 100%;
 }
 
@@ -40,7 +41,8 @@
 .settings-body {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow: visible; /* 改为 visible，让内容区域自行处理滚动 */
+  min-height: 0; /* 确保 flex 子元素可以正确收缩 */
 }
 
 /* Settings Sidebar */
@@ -97,10 +99,12 @@
 /* Settings Content */
 .settings-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* 保持垂直滚动 */
   overflow-x: hidden;
   background: #1e1e1e;
   padding: 24px;
+  height: 100%; /* 明确高度，确保滚动区域正确 */
+  position: relative; /* 确保定位上下文 */
 }
 
 /* Custom scrollbar */
