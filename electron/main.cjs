@@ -225,6 +225,16 @@ ipcMain.handle('opencode-plugin:detect-all', async () => {
   }
 });
 
+ipcMain.handle('opencode-plugin:get-cached', async () => {
+  try {
+    const installations = await opencodePluginManager.detectAllInstallations(false); // use cache
+    return { success: true, installations: installations || [] };
+  } catch (error) {
+    console.error('[Main] Failed to get cached installations:', error);
+    return { success: false, error: error.message, installations: [] };
+  }
+});
+
 ipcMain.handle('opencode-plugin:get-active', async () => {
   try {
     const installation = await opencodePluginManager.getActiveInstallation();

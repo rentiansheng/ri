@@ -54,14 +54,41 @@ export interface Config {
     defaultShell: string | null;
     fontSize: number;
     fontFamily: string;
+    fontWeight: string;
+    fontWeightBold: string;
+    lineHeight: number;
+    letterSpacing: number;
     cursorStyle: 'block' | 'underline' | 'bar';
     cursorBlink: boolean;
     scrollback: number;
+    smoothScrollDuration: number;
+    fastScrollModifier: 'alt' | 'shift' | 'ctrl';
+    fastScrollSensitivity: number;
+    scrollSensitivity: number;
+    allowTransparency: boolean;
     theme: {
+      name: string;
       background: string;
       foreground: string;
       cursor: string;
-      selection: string;
+      cursorAccent: string;
+      selectionBackground: string;
+      black: string;
+      red: string;
+      green: string;
+      yellow: string;
+      blue: string;
+      magenta: string;
+      cyan: string;
+      white: string;
+      brightBlack: string;
+      brightRed: string;
+      brightGreen: string;
+      brightYellow: string;
+      brightBlue: string;
+      brightMagenta: string;
+      brightCyan: string;
+      brightWhite: string;
     };
   };
   window: {
@@ -69,6 +96,7 @@ export interface Config {
     height: number;
     alwaysOnTop: boolean;
     sidebarCollapsed: boolean;
+    navigationWidth?: number;
   };
   ai: {
     enabled: boolean;
@@ -267,6 +295,11 @@ export interface OpencodePluginAPI {
   }>;
   // New methods for multi-path detection
   detectAll: () => Promise<{ 
+    success: boolean; 
+    installations: OpencodeInstallation[];
+    error?: string;
+  }>;
+  getCached: () => Promise<{ 
     success: boolean; 
     installations: OpencodeInstallation[];
     error?: string;

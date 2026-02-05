@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTerminalStore, Session, Tab } from './store/terminalStore';
 import { useConfigStore } from './store/configStore';
 import { useNotifyStore } from './store/notifyStore';
+import { useXTermStore } from './store/xtermStore';
 import Sidebar from './components/Sidebar';
 import SessionList from './components/SessionList';
 import NotifyList from './components/NotifyList';
@@ -30,17 +31,56 @@ function App() {
   const activeTabId = useTerminalStore(state => state.activeTabId);
   const createSession = useTerminalStore(state => state.createSession);
   const loadConfig = useConfigStore(state => state.loadConfig);
+  const setTerminalConfig = useXTermStore(state => state.setTerminalConfig);
   const hasVisibleSessions = visibleSessionIds.length > 0;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState<AppView>('sessions');
+  const [navigationWidth, setNavigationWidth] = useState(250); // 导航栏宽度
+  const [isResizing, setIsResizing] = useState(false); // 是否正在拖动调整
+  const navigationWidthRef = useRef(250); // 用于在事件处理器中获取最新值
+  
+  // 同步 navigationWidth 到 ref
+  useEffect(() => {
+    navigationWidthRef.current = navigationWidth;
+  }, [navigationWidth]);
   
   // State for selected items in notify view
   const [selectedNotifySessionId, setSelectedNotifySessionId] = useState<string | null>(null);
   
   // Load configuration on mount
   useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
+    const loadConfigs = async () => {
+      await loadConfig();
+      
+      // 加载终端配置和导航栏宽度
+      try {
+        const config = await window.config.get();
+        if (config.terminal) {
+          setTerminalConfig(config.terminal);
+        }
+        // 加载导航栏宽度
+        if (config.window?.navigationWidth) {
+          setNavigationWidth(config.window.navigationWidth);
+          navigationWidthRef.current = config.window.navigationWidth;
+        }
+      } catch (error) {
+        console.error('Failed to load config:', error);
+      }
+    };
+    
+    loadConfigs();
+  }, [loadConfig, setTerminalConfig]);
+  
+  // 监听配置变化
+  useEffect(() => {
+    const cleanup = window.config.onChange((newConfig) => {
+      if (newConfig.terminal) {
+        setTerminalConfig(newConfig.terminal);
+      }
+    });
+    
+    return cleanup;
+  }, [setTerminalConfig]);
   
   // Setup notification listeners
   useEffect(() => {
@@ -66,7 +106,52 @@ function App() {
       window.dispatchEvent(new Event('resize'));
     }, 300);
     return () => clearTimeout(timer);
-  }, [sidebarCollapsed, activeView]);
+  }, [sidebarCollapsed, activeView, navigationWidth]);
+
+  // 处理导航栏拖动调整大小
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = e.clientX - 48; // 减去左侧图标栏宽度
+      // 限制宽度在 150px - 500px 之间
+      if (newWidth >= 150 && newWidth <= 500) {
+        setNavigationWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = async () => {
+      setIsResizing(false);
+      // 拖动结束后触发 resize
+      window.dispatchEvent(new Event('resize'));
+      
+      // 保存导航栏宽度到配置
+      try {
+        const config = await window.config.get();
+        await window.config.update({
+          ...config,
+          window: { 
+            ...config.window, 
+            navigationWidth: navigationWidthRef.current 
+          }
+        });
+      } catch (error) {
+        console.error('Failed to save navigation width:', error);
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = () => {
+    setIsResizing(true);
+  };
 
   // Render navigation panel based on active view
   const renderNavigationPanel = React.useMemo(() => {
@@ -200,15 +285,31 @@ function App() {
       {/* Left: Navigation panel (250px, collapsible) - show for sessions, notify */}
       {(activeView === 'sessions' || activeView === 'notify') && (
         <>
-          <aside className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}>
+          <aside 
+            className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}
+            style={{ 
+              width: sidebarCollapsed ? 0 : navigationWidth,
+              minWidth: sidebarCollapsed ? 0 : navigationWidth 
+            }}
+          >
             {renderNavigationPanel}
           </aside>
+          
+          {/* Resize handle */}
+          {!sidebarCollapsed && (
+            <div 
+              className="navigation-resize-handle"
+              onMouseDown={handleResizeStart}
+              style={{ left: 48 + navigationWidth }}
+            />
+          )}
           
           {/* Navigation toggle button */}
           <button 
             className="navigation-toggle" 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             title={sidebarCollapsed ? '展开导航栏' : '收起导航栏'}
+            style={{ left: sidebarCollapsed ? 48 : 48 + navigationWidth }}
           >
             {sidebarCollapsed ? '▶' : '◀'}
           </button>

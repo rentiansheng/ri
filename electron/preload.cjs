@@ -117,6 +117,7 @@ contextBridge.exposeInMainWorld('opencodePlugin', {
   getInfo: () => ipcRenderer.invoke('opencode-plugin:get-info'),
   // New methods for multi-path detection
   detectAll: () => ipcRenderer.invoke('opencode-plugin:detect-all'),
+  getCached: () => ipcRenderer.invoke('opencode-plugin:get-cached'),
   getActive: () => ipcRenderer.invoke('opencode-plugin:get-active'),
   setActive: (installationId) => ipcRenderer.invoke('opencode-plugin:set-active', installationId),
   addCustomPath: (path) => ipcRenderer.invoke('opencode-plugin:add-custom-path', path),

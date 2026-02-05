@@ -26,21 +26,40 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: transform 0.3s ease, width 0.3s ease, min-width 0.3s ease;
+  transition: transform 0.3s ease;
   z-index: 20;
 }
 
 .app-navigation.collapsed {
   width: 0;
   min-width: 0;
-  transform: translateX(-250px);
+  transform: translateX(-100%);
   border-right: none;
+}
+
+/* Navigation resize handle */
+.navigation-resize-handle {
+  position: absolute;
+  width: 5px;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+  z-index: 99;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.navigation-resize-handle:hover {
+  background: rgba(0, 122, 204, 0.3);
+}
+
+.navigation-resize-handle:active {
+  background: rgba(0, 122, 204, 0.5);
 }
 
 /* Navigation toggle button */
 .navigation-toggle {
   position: absolute;
-  left: 298px; /* 48px (icons) + 250px (navigation) */
   top: 50%;
   transform: translateY(-50%);
   width: 24px;
@@ -56,11 +75,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: left 0.3s ease, background 0.2s ease;
-}
-
-.app-navigation.collapsed + .navigation-toggle {
-  left: 48px; /* Only icons visible */
+  transition: background 0.2s ease;
 }
 
 .navigation-toggle:hover {

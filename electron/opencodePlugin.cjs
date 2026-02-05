@@ -229,23 +229,94 @@ class OpencodePluginManager {
   }
 
   /**
-   * 检测所有 OpenCode 安装（主方法）
+   * 从配置文件加载检测缓存
    */
-  async detectAllInstallations(forceRefresh = false) {
-    // Check cache
-    if (!forceRefresh && this._detectionCache && this._detectionCacheTime) {
-      const now = Date.now();
-      if (now - this._detectionCacheTime < this._cacheTimeout) {
-        console.log('[OpencodePlugin] Using cached detection results');
-        return this._detectionCache;
+  loadDetectionCache() {
+    const config = this.getPluginConfig();
+    if (config.detectionCache && config.detectionCache.installations) {
+      console.log('[OpencodePlugin] Loaded detection cache from config');
+      return config.detectionCache.installations;
+    }
+    return null;
+  }
+
+  /**
+   * 保存检测缓存到配置文件
+   */
+  saveDetectionCache(installations) {
+    const config = this.getPluginConfig();
+    config.detectionCache = {
+      timestamp: Date.now(),
+      installations: installations.map(inst => ({
+        id: inst.id,
+        path: inst.path,
+        version: inst.version,
+        pluginDir: inst.pluginDir,
+        source: inst.source,
+        shellType: inst.shellType,
+        isValid: inst.isValid,
+        isActive: inst.isActive
+      }))
+    };
+    this.savePluginConfig(config);
+    console.log('[OpencodePlugin] Saved detection cache to config');
+  }
+
+  /**
+   * 智能合并：新检测的路径 + 缓存中仍然有效的路径
+   */
+  async smartMerge(newList, cachedList) {
+    const merged = new Map();
+    
+    // 1. 添加所有新检测到的路径
+    for (const inst of newList) {
+      merged.set(inst.path, inst);
+    }
+    
+    // 2. 验证并添加缓存中的路径（如果不在新列表中）
+    for (const cached of cachedList) {
+      if (!merged.has(cached.path)) {
+        // 验证路径是否仍然有效
+        const valid = await this.validateOpencodeInstallation(cached.path);
+        if (valid) {
+          // 保留原有的 source 和其他属性
+          valid.source = cached.source;
+          if (cached.shellType) {
+            valid.shellType = cached.shellType;
+          }
+          merged.set(cached.path, valid);
+          console.log(`[OpencodePlugin] Cached path still valid: ${cached.path}`);
+        } else {
+          console.log(`[OpencodePlugin] Cached path no longer valid, removing: ${cached.path}`);
+        }
       }
     }
     
-    console.log('[OpencodePlugin] Starting OpenCode detection...');
+    return Array.from(merged.values());
+  }
+
+  /**
+   * 检测所有 OpenCode 安装（主方法）
+   */
+  async detectAllInstallations(forceRefresh = false) {
+    // 1. 如果不强制刷新，优先从持久化缓存加载
+    if (!forceRefresh) {
+      const cached = this.loadDetectionCache();
+      if (cached && cached.length > 0) {
+        console.log('[OpencodePlugin] Using persistent cache');
+        // 更新内存缓存
+        this._detectionCache = cached;
+        this._detectionCacheTime = Date.now();
+        return cached;
+      }
+    }
+    
+    console.log('[OpencodePlugin] Starting full OpenCode detection...');
     
     const installationMap = new Map(); // Key: path, Value: installation
     
-    // 1. 优先级最高: 用户手动添加的路径
+    // 2. 执行完整检测
+    // 2.1. 优先级最高: 用户手动添加的路径
     try {
       const customPaths = await this.detectViaCustomPaths();
       for (const inst of customPaths) {
@@ -256,7 +327,7 @@ class OpencodePluginManager {
       console.error('[OpencodePlugin] detectViaCustomPaths failed:', error);
     }
     
-    // 2. Shell 环境检测 (最准确)
+    // 2.2. Shell 环境检测 (最准确)
     try {
       const shellPaths = await this.detectViaShell();
       for (const inst of shellPaths) {
@@ -269,7 +340,7 @@ class OpencodePluginManager {
       console.error('[OpencodePlugin] detectViaShell failed:', error);
     }
     
-    // 3. 文件系统常见路径检测 (兜底)
+    // 2.3. 文件系统常见路径检测 (兜底)
     try {
       const fsPaths = await this.detectViaFilesystem();
       for (const inst of fsPaths) {
@@ -282,25 +353,33 @@ class OpencodePluginManager {
       console.error('[OpencodePlugin] detectViaFilesystem failed:', error);
     }
     
-    // Convert to array and filter valid ones
-    let installations = Array.from(installationMap.values()).filter(inst => inst.isValid);
+    // 3. 智能合并：新检测结果 + 缓存中仍然有效的路径
+    let newInstallations = Array.from(installationMap.values()).filter(inst => inst.isValid);
     
-    // Load active installation from config
+    if (forceRefresh) {
+      const cached = this.loadDetectionCache();
+      if (cached && cached.length > 0) {
+        console.log('[OpencodePlugin] Performing smart merge with cache...');
+        newInstallations = await this.smartMerge(newInstallations, cached);
+      }
+    }
+    
+    // 4. 标记活动安装
     const config = this.getPluginConfig();
     const activeId = config.activeOpencodeId;
     
     if (activeId) {
-      installations = installations.map(inst => ({
+      newInstallations = newInstallations.map(inst => ({
         ...inst,
         isActive: inst.id === activeId
       }));
-    } else if (installations.length > 0) {
+    } else if (newInstallations.length > 0) {
       // No active set, auto-select the first one (prefer manual > shell > filesystem)
-      installations[0].isActive = true;
+      newInstallations[0].isActive = true;
     }
     
-    // Sort: active first, then by source priority
-    installations.sort((a, b) => {
+    // 5. 排序：活动的优先，然后按 source 优先级
+    newInstallations.sort((a, b) => {
       if (a.isActive && !b.isActive) return -1;
       if (!a.isActive && b.isActive) return 1;
       
@@ -308,13 +387,16 @@ class OpencodePluginManager {
       return sourceOrder[a.source] - sourceOrder[b.source];
     });
     
-    console.log(`[OpencodePlugin] Total installations found: ${installations.length}`);
+    console.log(`[OpencodePlugin] Total installations found: ${newInstallations.length}`);
     
-    // Cache results
-    this._detectionCache = installations;
+    // 6. 保存到持久化缓存
+    this.saveDetectionCache(newInstallations);
+    
+    // 7. 更新内存缓存
+    this._detectionCache = newInstallations;
     this._detectionCacheTime = Date.now();
     
-    return installations;
+    return newInstallations;
   }
 
   /**

@@ -1,0 +1,120 @@
+.terminal-settings {
+  padding: 20px;
+  max-width: 900px;
+}
+
+.terminal-settings-message {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.terminal-settings-message-success {
+  background: rgba(152, 151, 26, 0.2);
+  border: 1px solid #98971a;
+  color: #b8bb26;
+}
+
+.terminal-settings-message-error {
+  background: rgba(204, 36, 29, 0.2);
+  border: 1px solid #cc241d;
+  color: #fb4934;
+}
+
+.loading-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+/* Theme Grid */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.theme-card {
+  border: 2px solid #3e3e3e;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.theme-card:hover {
+  border-color: #007acc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2);
+}
+
+.theme-card.selected {
+  border-color: #007acc;
+  background: rgba(0, 122, 204, 0.1);
+}
+
+.theme-preview {
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.theme-preview-text {
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Monaco, monospace;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.theme-color-palette {
+  display: flex;
+  gap: 4px;
+}
+
+.theme-color-palette span {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.theme-name {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #d4d4d4;
+  font-weight: 500;
+}
+
+.theme-selected-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: #007acc;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.settings-actions {
+  margin-top: 32px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #3e3e3e;
+}

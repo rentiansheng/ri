@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useConfigStore } from '../store/configStore';
 import { NotificationTheme, themes } from '../utils/notificationThemes';
 import OpencodeSettings from './Settings/OpencodeSettings';
+import TerminalSettings from './Settings/TerminalSettings';
 import './SettingsView.css';
 
 type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode';
@@ -653,7 +654,7 @@ const SettingsView: React.FC = () => {
       case 'opencode':
         return <OpencodeSettings />;
       case 'terminal':
-        return <div className="settings-section-content">Terminal settings coming soon...</div>;
+        return <TerminalSettings />;
       case 'appearance':
         return <div className="settings-section-content">Appearance settings coming soon...</div>;
       case 'advanced':

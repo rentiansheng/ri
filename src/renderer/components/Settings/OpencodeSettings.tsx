@@ -33,7 +33,6 @@ const OpencodeSettings: React.FC = () => {
   const [isDetecting, setIsDetecting] = useState(false);
   const [showAddCustomPath, setShowAddCustomPath] = useState(false);
   const [customPathInput, setCustomPathInput] = useState('');
-  const [autoDetected, setAutoDetected] = useState(false);
   
   // Refs
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -111,14 +110,35 @@ const OpencodeSettings: React.FC = () => {
           opencode: result.opencode,
         });
         
-        // Auto-detect installations if OpenCode is installed
-        if (result.opencode?.installed && !autoDetected) {
-          setAutoDetected(true);
-          handleDetectInstallations();
+        // Load cached installations if OpenCode is installed
+        if (result.opencode?.installed) {
+          await loadCachedInstallations();
         }
       }
     } catch (error) {
       console.error('Failed to load plugin info:', error);
+    }
+  };
+  
+  // Load cached installations or auto-detect on first time
+  const loadCachedInstallations = async () => {
+    try {
+      const result = await window.opencodePlugin.getCached();
+      if (result.success) {
+        if (result.installations.length === 0) {
+          // First time - no cache, auto-detect
+          console.log('[OpencodeSettings] No cache found, triggering auto-detection');
+          await handleDetectInstallations();
+        } else {
+          // Has cache - display directly
+          console.log('[OpencodeSettings] Loaded from cache:', result.installations.length);
+          setInstallations(result.installations);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load cached installations:', error);
+      // Fallback to auto-detect
+      await handleDetectInstallations();
     }
   };
   
@@ -142,6 +162,17 @@ const OpencodeSettings: React.FC = () => {
             read: false
           });
         } else {
+          // Success notification
+          notifyStore.addNotification({
+            id: Date.now().toString(),
+            sessionId: 'opencode',
+            sessionName: 'OpenCode',
+            title: 'Detection Complete',
+            body: `Found ${result.installations.length} OpenCode installation${result.installations.length > 1 ? 's' : ''}`,
+            type: 'success',
+            timestamp: Date.now(),
+            read: false
+          });
           console.log(`[OpencodeSettings] Found ${result.installations.length} OpenCode installation(s)`);
         }
       }
