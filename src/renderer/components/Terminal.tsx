@@ -3,6 +3,7 @@ import { Terminal as XTerm } from 'xterm';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { useTerminalStore } from '../store/terminalStore';
 import { useXTermStore } from '../store/xtermStore';
+import { useUIEditStore } from '../store/uiEditStore';
 import 'xterm/css/xterm.css';
 
 // ============================================================
@@ -75,6 +76,7 @@ const Terminal: React.FC<TerminalProps> = ({
   const updateLastActivityTime = useTerminalStore((state) => state.updateLastActivityTime);
   const renameSession = useTerminalStore((state) => state.renameSession);
   const xtermStore = useXTermStore();
+  const isEditingAnything = useUIEditStore((state) => state.isEditingAnything);
 
   // 从 xtermStore 获取 xterm 实例
   const xtermInstance = xtermStore.getInstance(sessionId);
@@ -610,6 +612,11 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!isActive || !isVisible) return;
     
     const ensureFocus = () => {
+      // 🔥 关键修复：如果正在编辑 session/tab 名称，不要抢夺焦点
+      if (isEditingAnything()) {
+        return;
+      }
+      
       if (hiddenInputRef.current && document.activeElement !== hiddenInputRef.current) {
         hiddenInputRef.current.focus({ preventScroll: true });
       }
@@ -620,10 +627,15 @@ const Terminal: React.FC<TerminalProps> = ({
     
     // 监听 focusout 事件，立即重新聚焦
     const handleFocusOut = (e: FocusEvent) => {
+      // 🔥 关键修复：如果正在编辑 session/tab 名称，不要抢夺焦点
+      if (isEditingAnything()) {
+        return;
+      }
+      
       // 如果焦点离开了隐藏输入框，且不是因为窗口失去焦点
       if (e.target === hiddenInputRef.current && document.hasFocus()) {
         setTimeout(() => {
-          if (hiddenInputRef.current) {
+          if (hiddenInputRef.current && !isEditingAnything()) {
             hiddenInputRef.current.focus({ preventScroll: true });
           }
         }, 10);
@@ -640,7 +652,7 @@ const Terminal: React.FC<TerminalProps> = ({
         hiddenInputRef.current.removeEventListener('focusout', handleFocusOut as any);
       }
     };
-  }, [isActive, isVisible]);
+  }, [isActive, isVisible, isEditingAnything]);
 
   const handleSearch = (term: string, forward: boolean = true) => {
     if (!searchAddon || !term) return;

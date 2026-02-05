@@ -158,6 +158,19 @@
   line-height: 35px;
 }
 
+.tab-rename-input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #007acc;
+  color: #d4d4d4;
+  padding: 2px 6px;
+  font-size: 13px;
+  border-radius: 2px;
+  outline: none;
+  font-family: inherit;
+  min-width: 0;
+}
+
 .tab-close {
   display: flex;
   align-items: center;

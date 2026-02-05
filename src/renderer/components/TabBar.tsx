@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTerminalStore, Tab, AIToolState } from '../store/terminalStore';
 import { useNotifyStore } from '../store/notifyStore';
+import { useUIEditStore } from '../store/uiEditStore';
 import { NotificationType } from '../types/global';
 import './TabBar.css';
 
@@ -30,14 +31,30 @@ export const TabBar: React.FC = () => {
     closeTabById,
     reorderTabsNew,
     sessions,
+    renameSession,
   } = useTerminalStore();
   
   const notifyStore = useNotifyStore();
+  
+  // 使用独立的 uiEditStore 管理编辑状态 - 只订阅需要的状态
+  const editingTabId = useUIEditStore((state) => state.editingTabId);
+  const tabEditName = useUIEditStore((state) => state.tabEditName);
+  const startEditTab = useUIEditStore((state) => state.startEditTab);
+  const updateTabEditName = useUIEditStore((state) => state.updateTabEditName);
+  const finishEditTab = useUIEditStore((state) => state.finishEditTab);
+  const cancelEditTab = useUIEditStore((state) => state.cancelEditTab);
+  
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleTabClick = (tabId: string) => {
+  const handleTabClick = (tabId: string, isEditingThis: boolean) => {
+    // 如果正在编辑这个 tab，不要切换
+    if (isEditingThis) {
+      return;
+    }
+    
     setActiveTab(tabId);
     
     // Clear notifications for this session when switching to terminal tab
@@ -51,6 +68,90 @@ export const TabBar: React.FC = () => {
     e.stopPropagation(); // Prevent tab activation when closing
     closeTabById(tabId);
   };
+
+  const handleDoubleClick = (e: React.MouseEvent, tab: Tab) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Only allow renaming terminal tabs
+    if (tab.type === 'terminal' && tab.sessionId) {
+      // 如果正在编辑其他 tab，先保存
+      if (editingTabId && editingTabId !== tab.id) {
+        finishEditTab((name) => {
+          const editingTab = tabs.find(t => t.id === editingTabId);
+          if (editingTab && editingTab.type === 'terminal' && editingTab.sessionId) {
+            renameSession(editingTab.sessionId, name);
+          }
+        });
+      }
+      
+      startEditTab(tab.id, tab.title);
+    }
+  };
+
+  const handleSaveTab = (tab: Tab) => {
+    finishEditTab((newName) => {
+      if (tab.type === 'terminal' && tab.sessionId) {
+        renameSession(tab.sessionId, newName);
+      }
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, tab: Tab) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveTab(tab);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEditTab();
+    }
+  };
+
+  // 全局点击外部检测
+  useEffect(() => {
+    const currentEditingTabId = editingTabId;
+    if (!currentEditingTabId) return;
+    
+    const currentTab = tabs.find(t => t.id === currentEditingTabId);
+    if (!currentTab) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // 检查是否点击了 input 自身
+      if (inputRef.current && inputRef.current.contains(target)) {
+        return;
+      }
+      
+      // 检查是否点击了关闭按钮 - 如果是，先保存再关闭
+      if (target.closest('.tab-close')) {
+        handleSaveTab(currentTab);
+        return;
+      }
+      
+      // 点击了其他地方，自动保存
+      handleSaveTab(currentTab);
+    };
+    
+    // 使用 mousedown 而不是 click，这样可以在 click 事件前捕获
+    document.addEventListener('mousedown', handleClickOutside, true);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+    };
+  }, [editingTabId, tabs]);
+
+  const handleMouseDownOnClose = () => {
+    // 不再需要，全局点击处理器会处理
+  };
+
+  // 自动选中所有文本
+  useEffect(() => {
+    if (editingTabId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingTabId]);
 
   const createDragPreview = (element: HTMLElement, tabTitle: string, isActive: boolean) => {
     const preview = document.createElement('div');
@@ -149,7 +250,7 @@ export const TabBar: React.FC = () => {
   const getTabClassName = (tab: Tab): string => {
     const baseClass = 'tab';
     const activeClass = tab.id === activeTabId ? 'active' : '';
-    const typeClass = tab.type === 'history' ? 'tab-history' : '';
+    const typeClass = tab.type === 'settings' ? 'tab-settings' : '';
     const dragClass = dragOverIndex !== null ? 'drag-over' : '';
     
     return `${baseClass} ${activeClass} ${typeClass} ${dragClass}`.trim();
@@ -182,13 +283,15 @@ export const TabBar: React.FC = () => {
           const aiStatus = getTabAIStatus(tab);
           const aiIcon = getAIStatusIcon(aiStatus);
           const notifDot = getTabNotificationDot(tab);
+          const isEditingThis = editingTabId === tab.id;
           
           return (
             <div
               key={tab.id}
               className={getTabClassName(tab)}
-              onClick={() => handleTabClick(tab.id)}
-              draggable
+              onClick={() => handleTabClick(tab.id, isEditingThis)}
+              onDoubleClick={(e) => handleDoubleClick(e, tab)}
+              draggable={!isEditingThis}
               onDragStart={(e) => handleDragStart(e, index, tab)}
               onDragEnd={handleDragEnd}
               onDragOver={(e) => handleDragOver(e, index)}
@@ -203,7 +306,20 @@ export const TabBar: React.FC = () => {
                 />
               )}
               {aiIcon && <span className="tab-status-icon">{aiIcon}</span>}
-              <span className="tab-title">{tab.title}</span>
+              {isEditingThis ? (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={tabEditName}
+                  onChange={(e) => updateTabEditName(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, tab)}
+                  className="tab-rename-input"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`tab-rename-input-${tab.id}`}
+                />
+              ) : (
+                <span className="tab-title">{tab.title}</span>
+              )}
               <button
                 className="tab-close"
                 onClick={(e) => handleCloseTab(e, tab.id)}
