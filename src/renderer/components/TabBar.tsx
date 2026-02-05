@@ -176,7 +176,7 @@ export const TabBar: React.FC = () => {
   }
 
   return (
-    <div className="tab-bar">
+    <div className="tab-bar" data-testid="tab-bar">
       <div className="tab-container">
         {tabs.map((tab, index) => {
           const aiStatus = getTabAIStatus(tab);
@@ -194,6 +194,7 @@ export const TabBar: React.FC = () => {
               onDragOver={(e) => handleDragOver(e, index)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
+              data-testid={`tab-${tab.id}`}
             >
               {notifDot?.show && (
                 <span 
@@ -207,6 +208,7 @@ export const TabBar: React.FC = () => {
                 className="tab-close"
                 onClick={(e) => handleCloseTab(e, tab.id)}
                 aria-label="Close tab"
+                data-testid={`close-tab-${tab.id}`}
               >
                 ×
               </button>

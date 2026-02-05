@@ -159,10 +159,15 @@ const SessionList: React.FC = () => {
   };
 
   return (
-    <div className="session-list">
+    <div className="session-list" data-testid="session-list">
       <div className="session-list-header">
         <h3>SESSIONS</h3>
-        <button onClick={handleCreateSession} className="btn-new-session" title="New Session">
+        <button 
+          onClick={handleCreateSession} 
+          className="btn-new-session" 
+          title="New Session"
+          data-testid="create-session-btn"
+        >
           +
         </button>
       </div>
@@ -180,6 +185,7 @@ const SessionList: React.FC = () => {
               className={`session-item ${session.id === activeSessionId ? 'active' : ''} ${session.aiToolState?.status === 'waiting' ? 'has-waiting-status' : ''}`}
               onClick={() => handleSessionClick(session.id)}
               onDoubleClick={() => handleDoubleClick(session)}
+              data-testid={`session-item-${session.id}`}
             >
               <div className="session-item-icon">
                 {visibleSessionIds.includes(session.id) ? '●' : '○'}
@@ -195,6 +201,7 @@ const SessionList: React.FC = () => {
                     autoFocus
                     className="session-item-input"
                     onClick={(e) => e.stopPropagation()}
+                    data-testid={`rename-input-${session.id}`}
                   />
                 ) : (
                   <>
@@ -222,6 +229,7 @@ const SessionList: React.FC = () => {
                   className="session-item-action session-item-delete"
                   onClick={(e) => handleDeleteSession(e, session.id)}
                   title="Delete"
+                  data-testid={`delete-session-${session.id}`}
                 >
                   🗑
                 </button>

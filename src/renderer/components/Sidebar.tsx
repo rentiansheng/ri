@@ -36,13 +36,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   };
 
   return (
-    <div className="sidebar-tabs">
+    <div className="sidebar-tabs" data-testid="sidebar">
       {CATEGORIES.map((category) => (
         <button
           key={category.id}
           className={`sidebar-tab ${activeView === category.id ? 'active' : ''}`}
           onClick={() => handleViewChange(category.id)}
           aria-label={category.label}
+          data-testid={`view-${category.id}`}
         >
           <span className="sidebar-tab-icon">{category.icon}</span>
           <span className="sidebar-tab-label">{category.label}</span>

@@ -683,7 +683,7 @@ const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="settings-view">
+    <div className="settings-view" data-testid="settings-view">
       {/* Header */}
       <div className="settings-header">
         <h3>SETTINGS</h3>
@@ -715,6 +715,7 @@ const SettingsView: React.FC = () => {
           <button
             className={`settings-nav-item ${activeSection === 'notification' ? 'active' : ''}`}
             onClick={() => setActiveSection('notification')}
+            data-testid="settings-tab-notification"
           >
             <span className="settings-nav-icon">🔔</span>
             <span className="settings-nav-label">Notifications</span>
@@ -722,6 +723,7 @@ const SettingsView: React.FC = () => {
           <button
             className={`settings-nav-item ${activeSection === 'opencode' ? 'active' : ''}`}
             onClick={() => setActiveSection('opencode')}
+            data-testid="settings-tab-opencode"
           >
             <span className="settings-nav-icon">🤖</span>
             <span className="settings-nav-label">OpenCode</span>
@@ -729,6 +731,7 @@ const SettingsView: React.FC = () => {
           <button
             className={`settings-nav-item ${activeSection === 'terminal' ? 'active' : ''}`}
             onClick={() => setActiveSection('terminal')}
+            data-testid="settings-tab-terminal"
           >
             <span className="settings-nav-icon">💻</span>
             <span className="settings-nav-label">Terminal</span>
@@ -736,6 +739,7 @@ const SettingsView: React.FC = () => {
           <button
             className={`settings-nav-item ${activeSection === 'appearance' ? 'active' : ''}`}
             onClick={() => setActiveSection('appearance')}
+            data-testid="settings-tab-appearance"
           >
             <span className="settings-nav-icon">🎨</span>
             <span className="settings-nav-label">Appearance</span>
@@ -743,6 +747,7 @@ const SettingsView: React.FC = () => {
           <button
             className={`settings-nav-item ${activeSection === 'advanced' ? 'active' : ''}`}
             onClick={() => setActiveSection('advanced')}
+            data-testid="settings-tab-advanced"
           >
             <span className="settings-nav-icon">⚙️</span>
             <span className="settings-nav-label">Advanced</span>

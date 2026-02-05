@@ -187,6 +187,7 @@ function App() {
               <h2>Welcome to Second Brain OS</h2>
               <button 
                 className="new-session-btn"
+                data-testid="create-session-btn-welcome"
                 onClick={handleCreateSession}
                 title="Create New Session"
               >
@@ -287,6 +288,7 @@ function App() {
         <>
           <aside 
             className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}
+            data-testid="navigation-panel"
             style={{ 
               width: sidebarCollapsed ? 0 : navigationWidth,
               minWidth: sidebarCollapsed ? 0 : navigationWidth 
@@ -299,6 +301,7 @@ function App() {
           {!sidebarCollapsed && (
             <div 
               className="navigation-resize-handle"
+              data-testid="navigation-resize-handle"
               onMouseDown={handleResizeStart}
               style={{ left: 48 + navigationWidth }}
             />

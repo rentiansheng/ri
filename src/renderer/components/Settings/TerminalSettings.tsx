@@ -268,9 +268,12 @@ const TerminalSettings: React.FC = () => {
   }
 
   return (
-    <div className="terminal-settings">
+    <div className="terminal-settings" data-testid="terminal-settings">
       {saveMessage && (
-        <div className={`terminal-settings-message terminal-settings-message-${saveMessage.type}`}>
+        <div 
+          className={`terminal-settings-message terminal-settings-message-${saveMessage.type}`}
+          data-testid={`settings-message-${saveMessage.type}`}
+        >
           {saveMessage.text}
         </div>
       )}
@@ -291,6 +294,7 @@ const TerminalSettings: React.FC = () => {
               value={fontSize}
               onChange={(e) => setFontSize(parseInt(e.target.value))}
               className="settings-input-number"
+              data-testid="font-size-input"
             />
           </div>
         </div>
@@ -402,6 +406,7 @@ const TerminalSettings: React.FC = () => {
                 key={themeName}
                 className={`theme-card ${selectedTheme === themeName ? 'selected' : ''}`}
                 onClick={() => handleThemeSelect(themeName)}
+                data-testid={`theme-${themeName.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 <div className="theme-preview" style={{ background: theme.background }}>
                   <div className="theme-preview-text" style={{ color: theme.foreground }}>
@@ -435,6 +440,7 @@ const TerminalSettings: React.FC = () => {
           className="settings-btn-primary"
           onClick={handleSave}
           disabled={isSaving}
+          data-testid="save-settings-btn"
         >
           {isSaving ? '保存中...' : '保存并应用'}
         </button>
