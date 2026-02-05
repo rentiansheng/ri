@@ -102,7 +102,6 @@ export function getNumberConstraints(path: string): { min: number; max: number; 
     'history.maxRecordsPerFile': { min: 100, max: 10000, step: 100 },
     'history.retentionDays': { min: 1, max: 365, step: 1 },
     'history.trimDebounceMs': { min: 1000, max: 60000, step: 1000 },
-    'terminal.fontSize': { min: 8, max: 32, step: 1 },
     'terminal.scrollback': { min: 100, max: 10000, step: 100 },
     'window.width': { min: 800, max: 3840, step: 10 },
     'window.height': { min: 600, max: 2160, step: 10 },

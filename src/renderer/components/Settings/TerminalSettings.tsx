@@ -280,24 +280,6 @@ const TerminalSettings: React.FC = () => {
 
       <div className="settings-group">
         <h3>字体设置</h3>
-        
-        <div className="settings-item">
-          <div className="settings-item-label">
-            <label>字体大小</label>
-            <span className="settings-item-description">终端文字大小 (px)</span>
-          </div>
-          <div className="settings-item-control">
-            <input
-              type="number"
-              min="8"
-              max="32"
-              value={fontSize}
-              onChange={(e) => setFontSize(parseInt(e.target.value))}
-              className="settings-input-number"
-              data-testid="font-size-input"
-            />
-          </div>
-        </div>
 
         <div className="settings-item">
           <div className="settings-item-label">
@@ -311,24 +293,6 @@ const TerminalSettings: React.FC = () => {
               onChange={(e) => setFontFamily(e.target.value)}
               className="settings-input"
               placeholder='Menlo, Monaco, "Courier New", monospace'
-            />
-          </div>
-        </div>
-
-        <div className="settings-item">
-          <div className="settings-item-label">
-            <label>行高</label>
-            <span className="settings-item-description">行间距倍数 (1.0 = 紧凑)</span>
-          </div>
-          <div className="settings-item-control">
-            <input
-              type="number"
-              min="0.8"
-              max="2.0"
-              step="0.1"
-              value={lineHeight}
-              onChange={(e) => setLineHeight(parseFloat(e.target.value))}
-              className="settings-input-number"
             />
           </div>
         </div>

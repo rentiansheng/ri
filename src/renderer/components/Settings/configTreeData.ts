@@ -114,13 +114,6 @@ export const CONFIG_TREE: ConfigTreeNode[] = [
         type: 'group',
         children: [
           {
-            id: 'terminal-font-size',
-            label: '字体大小',
-            type: 'item',
-            configPath: 'terminal.fontSize',
-            description: '终端字体大小（像素，8 - 32）'
-          },
-          {
             id: 'terminal-font-family',
             label: '字体族',
             type: 'item',
