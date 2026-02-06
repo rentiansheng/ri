@@ -4,6 +4,7 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { useTerminalStore } from '../store/terminalStore';
 import { useXTermStore } from '../store/xtermStore';
 import { useUIEditStore } from '../store/uiEditStore';
+import { useSplit } from '../contexts/SplitContext';
 import 'xterm/css/xterm.css';
 
 // ============================================================
@@ -50,6 +51,7 @@ interface TerminalProps {
   sessionName: string;
   isActive: boolean;
   isVisible: boolean;
+  useRelativePosition?: boolean;
 }
 
 // ============================================================
@@ -59,7 +61,8 @@ const Terminal: React.FC<TerminalProps> = ({
   sessionId, 
   terminalId, 
   isActive, 
-  isVisible 
+  isVisible,
+  useRelativePosition = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -73,13 +76,26 @@ const Terminal: React.FC<TerminalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null);
   
+  // Incremented when DOM is lost to force re-mount effect
+  const [mountKey, setMountKey] = useState(0);
+  
   const updateLastActivityTime = useTerminalStore((state) => state.updateLastActivityTime);
   const renameSession = useTerminalStore((state) => state.renameSession);
+  const deleteSession = useTerminalStore((state) => state.deleteSession);
+  const closeTerminal = useTerminalStore((state) => state.closeTerminal);
   const xtermStore = useXTermStore();
   const isEditingAnything = useUIEditStore((state) => state.isEditingAnything);
+  
+  // Try to get split context, but don't fail if not available
+  let splitContext: { splitTerminal: (terminalId: string, direction: 'horizontal' | 'vertical') => Promise<void> } | null = null;
+  try {
+    splitContext = useSplit();
+  } catch {
+    // Not in a split context, that's okay
+  }
 
   // 从 xtermStore 获取 xterm 实例
-  const xtermInstance = xtermStore.getInstance(sessionId);
+  const xtermInstance = xtermStore.getInstance(terminalId);
   const xterm = xtermInstance?.xterm;
   const fitAddon = xtermInstance?.fitAddon;
   const searchAddon = xtermInstance?.searchAddon;
@@ -320,6 +336,12 @@ const Terminal: React.FC<TerminalProps> = ({
           sendToPty('\x1a');
           return;
         }
+        // Ctrl+L: 清屏
+        if (key === 'l' || key === 'L') {
+          e.preventDefault();
+          if (xterm) xterm.clear();
+          return;
+        }
         // Ctrl+A-Z (通用处理)
         if (key.length === 1) {
           const char = key.toLowerCase();
@@ -341,7 +363,8 @@ const Terminal: React.FC<TerminalProps> = ({
         }
       }
       
-      // macOS Cmd+C/Cmd+V
+      // macOS Cmd+C/Cmd+V/Cmd+K
+      // NOTE: Do NOT exclude shiftKey here because some users may press Cmd+Shift+C/V.
       if (e.metaKey && !e.ctrlKey && !e.altKey) {
         if (key === 'c' || key === 'C') {
           e.preventDefault();
@@ -362,6 +385,26 @@ const Terminal: React.FC<TerminalProps> = ({
           }).catch(err => {
             console.error('[Terminal] Paste failed:', err);
           });
+          return;
+        }
+        if (key === 'k' || key === 'K') {
+          e.preventDefault();
+          if (xterm) xterm.clear();
+          return;
+        }
+        // Cmd+D = split vertically. Cmd+Shift+D is handled below (split horizontally).
+        if ((key === 'd' || key === 'D') && !e.shiftKey && splitContext) {
+          e.preventDefault();
+          handleSplitVertically();
+          return;
+        }
+      }
+      
+      // Cmd+Shift 组合键 (iTerm 风格)
+      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey) {
+        if ((key === 'd' || key === 'D') && splitContext) {
+          e.preventDefault();
+          handleSplitHorizontally();
           return;
         }
       }
@@ -481,7 +524,39 @@ const Terminal: React.FC<TerminalProps> = ({
     const unsubscribeExit = window.terminal.onExit((payload: { id: string }) => {
       if (payload.id === terminalId && xterm) {
         xterm.write('\r\n[Process completed]\r\n');
+        
+        // 延迟检查，确保状态已更新
+        setTimeout(() => {
+          const currentSession = useTerminalStore.getState().sessions.find(s => s.id === sessionId);
+          if (currentSession) {
+            console.log(`[Terminal Exit] Session ${sessionId} has ${currentSession.terminalIds.length} terminals`);
+            
+            // 检查除了当前退出的终端外，还有多少个活跃终端
+            const remainingTerminals = currentSession.terminalIds.filter(id => id !== terminalId);
+            
+            if (remainingTerminals.length === 0) {
+              // 这是最后一个终端，删除整个 session
+              console.log(`[Terminal Exit] Deleting session ${sessionId} - last terminal`);
+              deleteSession(sessionId);
+            } else {
+              // 还有其他终端，只关闭当前终端
+              console.log(`[Terminal Exit] Closing terminal ${terminalId} - ${remainingTerminals.length} remaining`);
+              closeTerminal(sessionId, terminalId, true);
+            }
+          }
+        }, 1000);
       }
+    });
+
+    // xterm.onData: mouse events (when TUI apps enable mouse tracking) + keyboard input
+    // We use hidden textarea for keyboard, but mouse events come through here
+    const xtermDataDisposable = xterm.onData((data: string) => {
+      sendToPty(data);
+    });
+
+    // xterm.onBinary: SGR mouse format (non-UTF-8 binary data)
+    const xtermBinaryDisposable = xterm.onBinary((data: string) => {
+      sendToPty(data);
     });
 
     dataUnsubscribeRef.current = unsubscribeData;
@@ -491,6 +566,8 @@ const Terminal: React.FC<TerminalProps> = ({
       console.log(`[Terminal ${sessionId}] Cleaning up PTY listeners`);
       unsubscribeData();
       unsubscribeExit();
+      xtermDataDisposable.dispose();
+      xtermBinaryDisposable.dispose();
     };
   }, [xterm, terminalId, sessionId]);
 
@@ -507,12 +584,24 @@ const Terminal: React.FC<TerminalProps> = ({
     console.log(`[Terminal ${sessionId}] Opening xterm to DOM`);
 
     try {
-      xterm.open(containerRef.current);
-      xtermStore.markAsOpened(sessionId);
+      const existingXterm = containerRef.current.querySelector('.xterm');
+      if (existingXterm) {
+        console.log(`[Terminal ${sessionId}] Container already has .xterm element, skipping open`);
+        xtermStore.markAsOpened(terminalId);
+        return;
+      }
       
-      // 加载 WebGL 渲染器
+      xterm.open(containerRef.current);
+      xtermStore.markAsOpened(terminalId);
+      
+      // Prevent xterm's native keyboard handling - we use hidden textarea for keyboard input
+      // but allow mouse events through for TUI apps like OpenCode
+      xterm.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        return event.type !== 'keydown' && event.type !== 'keypress';
+      });
+      
       requestAnimationFrame(() => {
-        if (!xterm) return;
+        if (!xterm || !xterm.element) return;
         try {
           const webglAddon = new WebglAddon();
           webglAddon.onContextLoss(() => {
@@ -578,26 +667,22 @@ const Terminal: React.FC<TerminalProps> = ({
     } catch (error) {
       console.error(`[Terminal ${sessionId}] Open failed:`, error);
     }
-  }, [xterm, xtermInstance, containerRef.current, sessionId, terminalId]);
+  }, [xterm, xtermInstance, containerRef.current, sessionId, terminalId, mountKey]);
 
   // 当 session 从不可见变为可见时，确保 xterm 正确显示
   useEffect(() => {
     if (!isVisible || !xterm || !xtermInstance || !containerRef.current) return;
     if (!xtermInstance.isOpened) return;  // 还没首次打开，等待上面的useEffect处理
     
-    console.log(`[Terminal ${sessionId}] Became visible, checking xterm DOM`);
+    console.log(`[Terminal ${sessionId}/${terminalId}] Became visible, checking xterm DOM`);
     
     // 检查 xterm DOM 是否在 container 中
     const xtermElement = containerRef.current.querySelector('.xterm');
     
     if (!xtermElement) {
-      // DOM 丢失了！这是严重问题
-      console.error(`[Terminal ${sessionId}] XTerm DOM lost! Marking for re-mount.`);
-      
-      // 标记为未打开，触发重新挂载
-      xtermStore.markAsClosed(sessionId);
-      
-      // 注意：此时上面的useEffect会自动触发重新open
+      console.error(`[Terminal ${sessionId}/${terminalId}] XTerm DOM lost! Triggering re-mount.`);
+      xtermStore.markAsClosed(terminalId);
+      setMountKey(k => k + 1);
       return;
     }
     
@@ -648,7 +733,7 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!isActive || !isVisible) return;
     if (!xterm || !fitAddon || !hiddenInputRef.current) return;
     
-    console.log(`[Terminal ${sessionId}] Tab became active and visible, fitting and focusing`);
+    console.log(`[Terminal ${sessionId}/${terminalId}] Tab became active and visible, fitting and focusing`);
     
     // 延迟一下，确保 DOM 已经渲染完成
     const timer = setTimeout(() => {
@@ -670,16 +755,15 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => clearTimeout(timer);
   }, [isActive, isVisible, xterm, fitAddon, terminalId, sessionId]);
 
-  // 点击容器时聚焦到隐藏输入框
   const handleContainerClick = () => {
-    console.log(`[Terminal ${sessionId}] Container clicked`, {
+    console.log(`[Terminal ${sessionId}/${terminalId}] Container clicked`, {
       isActive,
       isVisible,
       hasHiddenInput: !!hiddenInputRef.current
     });
-    if (isActive && isVisible && hiddenInputRef.current) {
+    if (isVisible && hiddenInputRef.current) {
       hiddenInputRef.current.focus({ preventScroll: true });
-      console.log(`[Terminal ${sessionId}] Focused hidden input`);
+      console.log(`[Terminal ${sessionId}/${terminalId}] Focused hidden input`);
     }
   };
   
@@ -688,12 +772,17 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!isActive || !isVisible) return;
     
     const ensureFocus = () => {
-      // 🔥 关键修复：如果正在编辑 session/tab 名称，不要抢夺焦点
       if (isEditingAnything()) {
         return;
       }
       
+      const recentlyClickedElement = document.querySelector('[data-recently-clicked="true"]');
+      if (recentlyClickedElement && recentlyClickedElement.getAttribute('data-terminal-id') !== terminalId) {
+        return;
+      }
+      
       if (hiddenInputRef.current && document.activeElement !== hiddenInputRef.current) {
+        console.log(`[Terminal ${sessionId}/${terminalId}] Ensuring focus on hidden input`);
         hiddenInputRef.current.focus({ preventScroll: true });
       }
     };
@@ -773,6 +862,20 @@ const Terminal: React.FC<TerminalProps> = ({
     setContextMenu(null);
   };
 
+  const handleSplitHorizontally = async () => {
+    if (splitContext) {
+      await splitContext.splitTerminal(terminalId, 'horizontal');
+    }
+    setContextMenu(null);
+  };
+
+  const handleSplitVertically = async () => {
+    if (splitContext) {
+      await splitContext.splitTerminal(terminalId, 'vertical');
+    }
+    setContextMenu(null);
+  };
+
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
     if (contextMenu) {
@@ -795,7 +898,14 @@ const Terminal: React.FC<TerminalProps> = ({
         data-terminal-id={terminalId}
         data-is-visible={isVisible}
         data-is-active={isActive}
-        style={{ 
+        style={useRelativePosition ? {
+          position: 'relative',
+          height: '100%',
+          width: '100%',
+          contain: 'strict',
+          visibility: isVisible ? 'visible' : 'hidden',
+          pointerEvents: isVisible ? 'auto' : 'none',
+        } : { 
           position: 'absolute',
           top: 0,
           left: 0,
@@ -829,12 +939,23 @@ const Terminal: React.FC<TerminalProps> = ({
       )}
       
       {contextMenu && isActive && isVisible && (
-        <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: '#2d2d2d', border: '1px solid #3e3e3e', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', zIndex: 2000, minWidth: '150px', padding: '4px 0' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: '#2d2d2d', border: '1px solid #3e3e3e', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', zIndex: 2000, minWidth: '180px', padding: '4px 0' }} onClick={(e) => e.stopPropagation()}>
           {contextMenu.hasSelection && (
             <div onClick={handleCopy} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>Copy</div>
           )}
           <div onClick={handlePaste} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>Paste</div>
           <div onClick={handleSelectAll} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>Select All</div>
+          {splitContext && (
+            <>
+              <div style={{ height: '1px', background: '#3e3e3e', margin: '4px 0' }} />
+              <div onClick={handleSplitHorizontally} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                <span>⬌</span>Split Horizontally
+              </div>
+              <div onClick={handleSplitVertically} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                <span>⬍</span>Split Vertically
+              </div>
+            </>
+          )}
           <div style={{ height: '1px', background: '#3e3e3e', margin: '4px 0' }} />
           <div onClick={handleClear} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>Clear Terminal</div>
         </div>

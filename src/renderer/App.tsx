@@ -8,6 +8,7 @@ import SessionList from './components/SessionList';
 import NotifyList from './components/NotifyList';
 import NotifyDetail from './components/NotifyDetail';
 import Terminal from './components/Terminal';
+import SplitTerminalView from './components/SplitTerminalView';
 import { TabBar } from './components/TabBar';
 import FlowView from './components/FlowView';
 import SettingsView from './components/SettingsView';
@@ -241,7 +242,7 @@ function App() {
                 visibleSessionIds,
                 sessions: getSessions.map(s => ({ 
                   id: s.id, 
-                  terminalId: s.terminalId, 
+                  terminalIds: s.terminalIds, 
                   name: s.name,
                   isActive: s.id === activeSessionId,
                   isVisible: visibleSessionIds.includes(s.id)
@@ -253,10 +254,9 @@ function App() {
               const isActive = session.id === activeSessionId;
               const isVisible = visibleSessionIds.includes(session.id);
               return (
-                <Terminal
+                <SplitTerminalView
                   key={session.id}
                   sessionId={session.id}
-                  terminalId={session.terminalId}
                   sessionName={session.name}
                   isActive={isActive}
                   isVisible={isVisible}

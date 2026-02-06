@@ -259,6 +259,8 @@ const SessionList: React.FC = () => {
     createSession();
   };
 
+
+
   const handleDeleteSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     

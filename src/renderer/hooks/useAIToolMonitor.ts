@@ -52,19 +52,24 @@ async function checkSession(
   setAIToolState: (sessionId: string, state: AIToolState | null) => void
 ): Promise<void> {
   try {
-    // 1. 获取进程信息
-    const processInfo = await window.terminal.getProcessInfo({
-      id: session.terminalId
-    });
+    // 1. 检查所有terminals中是否有AI工具运行
+    let aiToolInfo = null;
+    let recentOutput = '';
     
-    if (!processInfo || !processInfo.processes) {
-      // 无法获取进程信息，清除状态
-      setAIToolState(session.id, null);
-      return;
+    for (const terminalId of session.terminalIds) {
+      const processInfo = await window.terminal.getProcessInfo({
+        id: terminalId
+      });
+      
+      if (processInfo && processInfo.processes) {
+        const toolInfo = findAIToolProcess(processInfo.processes);
+        if (toolInfo) {
+          aiToolInfo = toolInfo;
+          recentOutput = getRecentOutput(terminalId, 5000);
+          break;
+        }
+      }
     }
-    
-    // 2. 检测是否有 AI 工具运行
-    const aiToolInfo = findAIToolProcess(processInfo.processes);
     
     if (!aiToolInfo) {
       // 没有 AI 工具运行，清除状态
@@ -73,7 +78,6 @@ async function checkSession(
     }
     
     // 3. 分析最近的输出
-    const recentOutput = getRecentOutput(session.terminalId, 5000);
     
     // 如果没有输出，可能是刚启动，状态为 idle
     if (!recentOutput || recentOutput.trim().length === 0) {

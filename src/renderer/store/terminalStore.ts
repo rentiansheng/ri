@@ -14,7 +14,7 @@ export interface AIToolState {
 export interface Session {
   id: string;
   name: string;
-  terminalId: string;
+  terminalIds: string[];  // Support multiple terminals per session
   createdAt: number;
   isVisible: boolean;  // 是否在右侧显示
   lastActivityTime: number;  // 最后活动时间（终端最后一次有数据输出的时间戳）
@@ -29,8 +29,22 @@ export interface Tab {
   id: string;  // Unique tab ID
   type: TabType;
   sessionId?: string;  // For terminal tabs
+  terminalId?: string;  // Specific terminal within session
   title: string;  // Display title
 }
+
+// Split pane layout for multi-terminal sessions
+export interface SplitPane {
+  id: string;
+  terminalId?: string;  // Leaf node: terminal ID
+  direction?: 'horizontal' | 'vertical';  // Branch node: split direction
+  children?: SplitPane[];  // Branch node: child panes
+  size?: number;  // Fraction of parent (0-1)
+}
+
+// Session layouts keyed by sessionId
+export type SessionLayouts = Record<string, SplitPane>;
+export type SessionActiveTerminals = Record<string, string>;
 
 interface TerminalStore {
   sessions: Session[];
@@ -38,6 +52,10 @@ interface TerminalStore {
   // Unified tab system
   tabs: Tab[];  // All tabs (terminal, settings)
   activeTabId: string | null;  // Currently active tab ID
+  
+  // Session split layouts (persists layout per session)
+  sessionLayouts: SessionLayouts;
+  sessionActiveTerminals: SessionActiveTerminals;
   
   // Legacy - keeping for compatibility
   visibleSessionIds: string[];  // Tab Bar 中显示的 Session IDs（按打开顺序）
@@ -57,20 +75,33 @@ interface TerminalStore {
   setAIToolState: (sessionId: string, state: AIToolState | null) => void;  // 设置 AI 工具状态
   getAIToolState: (sessionId: string) => AIToolState | null;  // 获取 AI 工具状态
   
+  // Multi-terminal support
+  createTerminalInSession: (sessionId: string, name?: string) => Promise<string | null>;  // Create new terminal in existing session
+  closeTerminal: (sessionId: string, terminalId: string, force?: boolean) => void;  // Close specific terminal
+  
   // New unified tab actions
-  openTab: (type: TabType, sessionId?: string, title?: string) => void;  // Open a new tab
+  openTab: (type: TabType, sessionId?: string, terminalId?: string, title?: string) => void;  // Open a new tab
   closeTabById: (tabId: string) => void;  // Close tab by ID
   setActiveTab: (tabId: string | null) => void;  // Set active tab
   reorderTabsNew: (fromIndex: number, toIndex: number) => void;  // Reorder tabs
   
   // Helper methods
   hasOpenTab: (sessionId: string) => boolean;  // Check if session has open tab
+  
+  // Session layout management
+  setSessionLayout: (sessionId: string, layout: SplitPane) => void;
+  getSessionLayout: (sessionId: string) => SplitPane | undefined;
+  setSessionActiveTerminal: (sessionId: string, terminalId: string) => void;
+  getSessionActiveTerminal: (sessionId: string) => string | undefined;
+  ensureSessionHasTerminal: (sessionId: string) => Promise<void>;
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
   sessions: [],
   tabs: [],
   activeTabId: null,
+  sessionLayouts: {},
+  sessionActiveTerminals: {},
   visibleSessionIds: [],
   activeSessionId: null,
   
@@ -86,7 +117,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       
       // 创建 xterm 实例
       const xtermStore = useXTermStore.getState();
-      xtermStore.createInstance(sessionId, terminalId);
+      xtermStore.createInstance(terminalId, sessionId);
       
       set((state) => ({
         sessions: [
@@ -94,7 +125,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           {
             id: sessionId,
             name: sessionName,
-            terminalId,
+            terminalIds: [terminalId],  // Array of terminal IDs
             createdAt: now,
             isVisible: true,
             lastActivityTime: now,  // 初始化为创建时间
@@ -106,7 +137,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       }));
       
       // Create and open a terminal tab
-      get().openTab('terminal', sessionId, sessionName);
+      get().openTab('terminal', sessionId, terminalId, sessionName);
       
       // Show terminal
       window.terminal.show({ id: terminalId });
@@ -119,12 +150,16 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     // Actually delete the session and terminal
     const session = get().sessions.find((s) => s.id === id);
     if (session) {
-      // 销毁 xterm 实例
+      // 销毁所有 xterm 实例
       const xtermStore = useXTermStore.getState();
-      xtermStore.destroyInstance(id);
+      session.terminalIds.forEach(terminalId => {
+        xtermStore.destroyInstance(terminalId);
+      });
       
-      // 销毁 PTY
-      window.terminal.dispose({ id: session.terminalId });
+      // 销毁所有 PTY
+      session.terminalIds.forEach(terminalId => {
+        window.terminal.dispose({ id: terminalId });
+      });
       
       // Delete session log file
       window.sessionLog.delete({ sessionId: id });
@@ -161,15 +196,19 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       // Tab已存在，直接激活
       get().setActiveTab(existingTab.id);
     } else {
-      // 创建新tab，使用当前session名字
-      get().openTab('terminal', id, session.name);
+      // 创建新tab，使用当前session名字和第一个terminal
+      const firstTerminalId = session.terminalIds[0];
+      get().openTab('terminal', id, firstTerminalId, session.name);
     }
     
     // 2. 同步更新旧系统（向后兼容）
     const isAlreadyVisible = get().visibleSessionIds.includes(id);
     
     if (!isAlreadyVisible) {
-      window.terminal.show({ id: session.terminalId });
+      // Show all terminals in the session
+      session.terminalIds.forEach(terminalId => {
+        window.terminal.show({ id: terminalId });
+      });
       
       set((state) => ({
         sessions: state.sessions.map((s) =>
@@ -187,8 +226,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const session = get().sessions.find((s) => s.id === id);
     if (!session) return;
     
-    // Hide terminal
-    window.terminal.hide({ id: session.terminalId });
+    // Hide all terminals in the session
+    session.terminalIds.forEach(terminalId => {
+      window.terminal.hide({ id: terminalId });
+    });
     
     set((state) => ({
       sessions: state.sessions.map((s) =>
@@ -239,8 +280,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const session = get().sessions.find((s) => s.id === id);
     if (!session) return;
     
-    // Hide terminal
-    window.terminal.hide({ id: session.terminalId });
+    // Hide all terminals in the session
+    session.terminalIds.forEach(terminalId => {
+      window.terminal.hide({ id: terminalId });
+    });
     
     set((state) => {
       const newVisibleIds = state.visibleSessionIds.filter((sid) => sid !== id);
@@ -352,15 +395,79 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     return session?.aiToolState || null;
   },
   
+  createTerminalInSession: async (sessionId: string, name?: string) => {
+    try {
+      const session = get().sessions.find(s => s.id === sessionId);
+      if (!session) return null;
+      
+      const terminalName = name || `Terminal ${session.terminalIds.length + 1}`;
+      const { id: terminalId } = await window.terminal.create({ 
+        sessionName: terminalName,
+        sessionId
+      });
+      
+      const xtermStore = useXTermStore.getState();
+      xtermStore.createInstance(terminalId, sessionId);
+      
+      set((state) => ({
+        sessions: state.sessions.map((s) =>
+          s.id === sessionId 
+            ? { ...s, terminalIds: [...s.terminalIds, terminalId] }
+            : s
+        ),
+      }));
+      
+      window.terminal.show({ id: terminalId });
+      
+      return terminalId;
+    } catch (error) {
+      console.error('Failed to create terminal in session:', error);
+      return null;
+    }
+  },
+  
+  closeTerminal: (sessionId: string, terminalId: string, force = false) => {
+    const session = get().sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    if (!force && session.terminalIds.length <= 1) {
+      console.warn('Cannot close the last terminal in a session');
+      return;
+    }
+
+    const remainingTerminals = session.terminalIds.filter(id => id !== terminalId);
+
+    const xtermStore = useXTermStore.getState();
+    xtermStore.destroyInstance(terminalId);
+
+    window.terminal.dispose({ id: terminalId });
+
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? { ...s, terminalIds: s.terminalIds.filter(id => id !== terminalId) }
+          : s
+      ),
+    }));
+
+    if (remainingTerminals.length === 0) {
+      const tabsToClose = get().tabs.filter(
+        tab => tab.type === 'terminal' && tab.sessionId === sessionId
+      );
+      tabsToClose.forEach(tab => get().closeTabById(tab.id));
+      return;
+    }
+  },
+  
   // New unified tab actions
-  openTab: (type: TabType, sessionId?: string, title?: string) => {
+  openTab: (type: TabType, sessionId?: string, terminalId?: string, title?: string) => {
     const tabId = nanoid();
     const session = sessionId ? get().sessions.find(s => s.id === sessionId) : null;
     
     let tabTitle = title || '';
     if (!tabTitle) {
       if (type === 'terminal' && session) {
-        tabTitle = session.name;
+        tabTitle = terminalId ? `${session.name} - Terminal ${session.terminalIds.indexOf(terminalId) + 1}` : session.name;
       } else if (type === 'settings') {
         tabTitle = '[S]: Settings';
       }
@@ -369,7 +476,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     // Check if tab already exists
     const existingTab = get().tabs.find(t => 
       t.type === type && 
-      (type === 'settings' || t.sessionId === sessionId)
+      (type === 'settings' || (t.sessionId === sessionId && t.terminalId === terminalId))
     );
     
     if (existingTab) {
@@ -383,6 +490,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       id: tabId,
       type,
       sessionId,
+      terminalId,
       title: tabTitle,
     };
     
@@ -398,33 +506,31 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
   
   closeTabById: (tabId: string) => {
-    set((state) => {
-      const newTabs = state.tabs.filter((t) => t.id !== tabId);
-      const closedTab = state.tabs.find((t) => t.id === tabId);
-      
-      // If closing active tab, switch to previous or next
-      let newActiveTabId = state.activeTabId;
-      if (state.activeTabId === tabId) {
-        const currentIndex = state.tabs.findIndex((t) => t.id === tabId);
-        if (currentIndex > 0) {
-          newActiveTabId = state.tabs[currentIndex - 1].id;
-        } else if (newTabs.length > 0) {
-          newActiveTabId = newTabs[0].id;
-        } else {
-          newActiveTabId = null;
-        }
+    const state = get();
+    const closedTab = state.tabs.find((t) => t.id === tabId);
+    const currentIndex = state.tabs.findIndex((t) => t.id === tabId);
+    const newTabs = state.tabs.filter((t) => t.id !== tabId);
+    
+    let newActiveTabId: string | null = state.activeTabId;
+    if (state.activeTabId === tabId) {
+      if (currentIndex > 0) {
+        newActiveTabId = state.tabs[currentIndex - 1].id;
+      } else if (newTabs.length > 0) {
+        newActiveTabId = newTabs[0].id;
+      } else {
+        newActiveTabId = null;
       }
-      
-      // Hide session if it's a terminal tab
-      if (closedTab?.type === 'terminal' && closedTab.sessionId) {
-        get().hideSession(closedTab.sessionId);
-      }
-      
-      return {
-        tabs: newTabs,
-        activeTabId: newActiveTabId,
-      };
-    });
+    }
+    
+    if (closedTab?.type === 'terminal' && closedTab.sessionId) {
+      get().hideSession(closedTab.sessionId);
+    }
+    
+    set({ tabs: newTabs });
+    
+    if (newActiveTabId !== state.activeTabId) {
+      get().setActiveTab(newActiveTabId);
+    }
   },
   
   setActiveTab: (tabId: string | null) => {
@@ -434,14 +540,29 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     if (tab?.type === 'terminal' && tab.sessionId) {
       const session = get().sessions.find(s => s.id === tab.sessionId);
       if (session) {
-        // 显示terminal
-        window.terminal.show({ id: session.terminalId });
-        
-        // 更新activeSessionId和activeTabId
-        set({ 
-          activeSessionId: tab.sessionId,
-          activeTabId: tabId 
+        // 显示所有terminals
+        session.terminalIds.forEach(terminalId => {
+          window.terminal.show({ id: terminalId });
         });
+        
+        const { visibleSessionIds } = get();
+        const isAlreadyVisible = visibleSessionIds.includes(tab.sessionId);
+        
+        if (!isAlreadyVisible) {
+          set((state) => ({
+            sessions: state.sessions.map((s) =>
+              s.id === tab.sessionId ? { ...s, isVisible: true } : s
+            ),
+            visibleSessionIds: [...state.visibleSessionIds, tab.sessionId!],
+            activeSessionId: tab.sessionId,
+            activeTabId: tabId 
+          }));
+        } else {
+          set({ 
+            activeSessionId: tab.sessionId,
+            activeTabId: tabId 
+          });
+        }
         
         // 延迟清除通知
         const notifyStore = useNotifyStore.getState();
@@ -466,5 +587,40 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   hasOpenTab: (sessionId: string) => {
     const { tabs } = get();
     return tabs.some(tab => tab.sessionId === sessionId);
+  },
+  
+  setSessionLayout: (sessionId: string, layout: SplitPane) => {
+    set((state) => ({
+      sessionLayouts: {
+        ...state.sessionLayouts,
+        [sessionId]: layout,
+      },
+    }));
+  },
+  
+  getSessionLayout: (sessionId: string) => {
+    return get().sessionLayouts[sessionId];
+  },
+  
+  setSessionActiveTerminal: (sessionId: string, terminalId: string) => {
+    set((state) => ({
+      sessionActiveTerminals: {
+        ...state.sessionActiveTerminals,
+        [sessionId]: terminalId,
+      },
+    }));
+  },
+  
+  getSessionActiveTerminal: (sessionId: string) => {
+    return get().sessionActiveTerminals[sessionId];
+  },
+  
+  ensureSessionHasTerminal: async (sessionId: string) => {
+    const session = get().sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    if (session.terminalIds.length === 0) {
+      await get().createTerminalInSession(sessionId);
+    }
   },
 }));

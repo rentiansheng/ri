@@ -16,26 +16,26 @@ export interface XTermInstance {
 }
 
 interface XTermStore {
-  instances: Map<string, XTermInstance>;  // key: sessionId
+  instances: Map<string, XTermInstance>;  // key: terminalId
   terminalConfig: any; // 终端配置
   
   // 设置终端配置
   setTerminalConfig: (config: any) => void;
   
   // 创建 xterm 实例
-  createInstance: (sessionId: string, terminalId: string) => XTermInstance;
+  createInstance: (terminalId: string, sessionId: string) => XTermInstance;
   
   // 获取 xterm 实例
-  getInstance: (sessionId: string) => XTermInstance | undefined;
+  getInstance: (terminalId: string) => XTermInstance | undefined;
   
   // 标记 xterm 已打开（调用过 open()）
-  markAsOpened: (sessionId: string) => void;
+  markAsOpened: (terminalId: string) => void;
   
   // 标记 xterm 已关闭（需要重新挂载）
-  markAsClosed: (sessionId: string) => void;
+  markAsClosed: (terminalId: string) => void;
   
   // 销毁 xterm 实例
-  destroyInstance: (sessionId: string) => void;
+  destroyInstance: (terminalId: string) => void;
   
   // 清除所有实例
   clearAll: () => void;
@@ -87,15 +87,15 @@ export const useXTermStore = create<XTermStore>((set, get) => ({
     set({ terminalConfig: config });
   },
   
-  createInstance: (sessionId: string, terminalId: string) => {
+  createInstance: (terminalId: string, sessionId: string) => {
     // 如果已存在，直接返回
-    const existing = get().instances.get(sessionId);
+    const existing = get().instances.get(terminalId);
     if (existing) {
-      console.log(`[XTermStore] Instance for session ${sessionId} already exists`);
+      console.log(`[XTermStore] Instance for terminal ${terminalId} already exists`);
       return existing;
     }
     
-    console.log(`[XTermStore] Creating xterm instance for session ${sessionId}`);
+    console.log(`[XTermStore] Creating xterm instance for terminal ${terminalId}`);
     
     // 获取当前配置
     const config = get().terminalConfig;
@@ -117,12 +117,12 @@ export const useXTermStore = create<XTermStore>((set, get) => ({
       rows: 24,
       cols: 80,
       allowProposedApi: true,
-      disableStdin: true,
+      disableStdin: false,  // Enable for mouse event support (TUI apps like OpenCode)
       convertEol: false,
-      smoothScrollDuration: 0,
+      smoothScrollDuration: 100,
       fastScrollModifier: 'shift',
       fastScrollSensitivity: 5,
-      scrollSensitivity: 1,
+      scrollSensitivity: 3,
     });
     
     // 创建 addons
@@ -148,46 +148,46 @@ export const useXTermStore = create<XTermStore>((set, get) => ({
     
     set((state) => {
       const newInstances = new Map(state.instances);
-      newInstances.set(sessionId, instance);
+      newInstances.set(terminalId, instance);
       return { instances: newInstances };
     });
     
     return instance;
   },
   
-  getInstance: (sessionId: string) => {
-    return get().instances.get(sessionId);
+  getInstance: (terminalId: string) => {
+    return get().instances.get(terminalId);
   },
   
-  markAsOpened: (sessionId: string) => {
-    const instance = get().instances.get(sessionId);
+  markAsOpened: (terminalId: string) => {
+    const instance = get().instances.get(terminalId);
     if (instance) {
       instance.isOpened = true;
       set((state) => {
         const newInstances = new Map(state.instances);
-        newInstances.set(sessionId, instance);
+        newInstances.set(terminalId, instance);
         return { instances: newInstances };
       });
     }
   },
   
-  markAsClosed: (sessionId: string) => {
-    const instance = get().instances.get(sessionId);
+  markAsClosed: (terminalId: string) => {
+    const instance = get().instances.get(terminalId);
     if (instance) {
-      console.log(`[XTermStore] Marking instance ${sessionId} as closed (needs re-mount)`);
+      console.log(`[XTermStore] Marking instance ${terminalId} as closed (needs re-mount)`);
       instance.isOpened = false;
       set((state) => {
         const newInstances = new Map(state.instances);
-        newInstances.set(sessionId, instance);
+        newInstances.set(terminalId, instance);
         return { instances: newInstances };
       });
     }
   },
   
-  destroyInstance: (sessionId: string) => {
-    const instance = get().instances.get(sessionId);
+  destroyInstance: (terminalId: string) => {
+    const instance = get().instances.get(terminalId);
     if (instance) {
-      console.log(`[XTermStore] Destroying xterm instance for session ${sessionId}`);
+      console.log(`[XTermStore] Destroying xterm instance for terminal ${terminalId}`);
       try {
         instance.xterm.dispose();
       } catch (e) {
@@ -196,7 +196,7 @@ export const useXTermStore = create<XTermStore>((set, get) => ({
       
       set((state) => {
         const newInstances = new Map(state.instances);
-        newInstances.delete(sessionId);
+        newInstances.delete(terminalId);
         return { instances: newInstances };
       });
     }
