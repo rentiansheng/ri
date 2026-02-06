@@ -293,10 +293,19 @@ const Terminal: React.FC<TerminalProps> = ({
       
       // Ctrl 组合键
       if (e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Ctrl+C
+        // Ctrl+C: 有选区时复制，无选区时发送 SIGINT
         if (key === 'c' || key === 'C') {
           e.preventDefault();
-          sendToPty('\x03');
+          if (xterm && xterm.hasSelection()) {
+            const selection = xterm.getSelection();
+            if (selection) {
+              navigator.clipboard.writeText(selection).catch(err => {
+                console.error('[Terminal] Copy failed:', err);
+              });
+            }
+          } else {
+            sendToPty('\x03');
+          }
           return;
         }
         // Ctrl+D
@@ -328,6 +337,31 @@ const Terminal: React.FC<TerminalProps> = ({
         if (key.length === 1) {
           e.preventDefault();
           sendToPty('\x1b' + key);
+          return;
+        }
+      }
+      
+      // macOS Cmd+C/Cmd+V
+      if (e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (key === 'c' || key === 'C') {
+          e.preventDefault();
+          if (xterm && xterm.hasSelection()) {
+            const selection = xterm.getSelection();
+            if (selection) {
+              navigator.clipboard.writeText(selection).catch(err => {
+                console.error('[Terminal] Copy failed:', err);
+              });
+            }
+          }
+          return;
+        }
+        if (key === 'v' || key === 'V') {
+          e.preventDefault();
+          navigator.clipboard.readText().then(text => {
+            if (text) sendToPty(text);
+          }).catch(err => {
+            console.error('[Terminal] Paste failed:', err);
+          });
           return;
         }
       }

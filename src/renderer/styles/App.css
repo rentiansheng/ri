@@ -252,15 +252,12 @@
   font-feature-settings: "liga" 0;
 }
 
-/* 确保行间距紧凑，适合 ASCII art - 强制覆盖内联样式 */
-.terminal-container .xterm .xterm-rows > div {
-  /* 使用与 fontSize (14px) 相同的高度，消除额外间距 */
-  line-height: 14px !important;
-  height: 14px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
-}
+/* 
+ * 注意：不要强制覆盖 xterm 的行高/高度！
+ * xterm.js 使用 canvas 渲染，行高由 xterm.options.lineHeight 控制。
+ * CSS 覆盖会导致选区层(selection layer)与文字层错位。
+ * 如需调整行高，请修改 xtermStore.ts 中的 lineHeight 配置。
+ */
 
 .terminal-container .xterm canvas {
   image-rendering: crisp-edges;
@@ -268,10 +265,7 @@
   image-rendering: -webkit-optimize-contrast;
 }
 
-/* 优化文本选择 */
-.terminal-container .xterm .xterm-selection-layer {
-  mix-blend-mode: multiply;
-}
+
 
 /* 改进光标可见性 */
 .terminal-container .xterm .xterm-cursor-layer {
