@@ -31,6 +31,9 @@ interface XTermStore {
   // 标记 xterm 已打开（调用过 open()）
   markAsOpened: (sessionId: string) => void;
   
+  // 标记 xterm 已关闭（需要重新挂载）
+  markAsClosed: (sessionId: string) => void;
+  
   // 销毁 xterm 实例
   destroyInstance: (sessionId: string) => void;
   
@@ -160,6 +163,19 @@ export const useXTermStore = create<XTermStore>((set, get) => ({
     const instance = get().instances.get(sessionId);
     if (instance) {
       instance.isOpened = true;
+      set((state) => {
+        const newInstances = new Map(state.instances);
+        newInstances.set(sessionId, instance);
+        return { instances: newInstances };
+      });
+    }
+  },
+  
+  markAsClosed: (sessionId: string) => {
+    const instance = get().instances.get(sessionId);
+    if (instance) {
+      console.log(`[XTermStore] Marking instance ${sessionId} as closed (needs re-mount)`);
+      instance.isOpened = false;
       set((state) => {
         const newInstances = new Map(state.instances);
         newInstances.set(sessionId, instance);

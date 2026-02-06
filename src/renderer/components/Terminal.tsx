@@ -546,6 +546,48 @@ const Terminal: React.FC<TerminalProps> = ({
     }
   }, [xterm, xtermInstance, containerRef.current, sessionId, terminalId]);
 
+  // 当 session 从不可见变为可见时，确保 xterm 正确显示
+  useEffect(() => {
+    if (!isVisible || !xterm || !xtermInstance || !containerRef.current) return;
+    if (!xtermInstance.isOpened) return;  // 还没首次打开，等待上面的useEffect处理
+    
+    console.log(`[Terminal ${sessionId}] Became visible, checking xterm DOM`);
+    
+    // 检查 xterm DOM 是否在 container 中
+    const xtermElement = containerRef.current.querySelector('.xterm');
+    
+    if (!xtermElement) {
+      // DOM 丢失了！这是严重问题
+      console.error(`[Terminal ${sessionId}] XTerm DOM lost! Marking for re-mount.`);
+      
+      // 标记为未打开，触发重新挂载
+      xtermStore.markAsClosed(sessionId);
+      
+      // 注意：此时上面的useEffect会自动触发重新open
+      return;
+    }
+    
+    console.log(`[Terminal ${sessionId}] XTerm DOM exists, refreshing...`);
+    
+    // DOM 存在，确保正确fit和刷新
+    setTimeout(() => {
+      if (fitAddon && xterm) {
+        try {
+          fitAddon.fit();
+          const { cols, rows } = xterm;
+          window.terminal.resize({ id: terminalId, cols, rows });
+          console.log(`[Terminal ${sessionId}] Refreshed after becoming visible`);
+        } catch (e) {
+          console.error(`[Terminal ${sessionId}] Fit failed:`, e);
+        }
+      }
+      
+      // 确保输入框正确定位
+      syncInputPosition();
+    }, 50);
+    
+  }, [isVisible, xterm, xtermInstance, xtermStore, sessionId, terminalId]);
+
   // 设置输入 textarea (只在首次运行，之后保持存在)
   useEffect(() => {
     if (!xterm || !xtermInstance || !containerRef.current) return;
@@ -565,7 +607,7 @@ const Terminal: React.FC<TerminalProps> = ({
       console.log(`[Terminal ${sessionId}] Cleaning up hidden input (component unmount)`);
       if (cleanup) cleanup();
     };
-  }, [xterm, xtermInstance, containerRef.current, sessionId]);
+  }, [xterm, xtermInstance, isVisible, sessionId]);
 
   // 当 tab 变为 active 和 visible 时，调整大小和聚焦
   useEffect(() => {
