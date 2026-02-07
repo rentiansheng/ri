@@ -174,9 +174,9 @@ const TerminalSettings: React.FC = () => {
         ...config,
         terminal: {
           ...config.terminal,
-          fontSize,
+          fontSize: fontSize || 14,
           fontFamily,
-          lineHeight,
+          lineHeight: lineHeight || 1.0,
           cursorStyle,
           cursorBlink,
           scrollback,
@@ -283,6 +283,23 @@ const TerminalSettings: React.FC = () => {
 
         <div className="settings-item">
           <div className="settings-item-label">
+            <label>字体大小</label>
+            <span className="settings-item-description">终端字体大小 (8-32)</span>
+          </div>
+          <div className="settings-item-control">
+            <input
+              type="number"
+              min="8"
+              max="32"
+              value={fontSize}
+              onChange={(e) => setFontSize(parseInt(e.target.value))}
+              className="settings-input-number"
+            />
+          </div>
+        </div>
+
+        <div className="settings-item">
+          <div className="settings-item-label">
             <label>字体族</label>
             <span className="settings-item-description">等宽字体，多个用逗号分隔</span>
           </div>
@@ -293,6 +310,24 @@ const TerminalSettings: React.FC = () => {
               onChange={(e) => setFontFamily(e.target.value)}
               className="settings-input"
               placeholder='Menlo, Monaco, "Courier New", monospace'
+            />
+          </div>
+        </div>
+
+        <div className="settings-item">
+          <div className="settings-item-label">
+            <label>行高</label>
+            <span className="settings-item-description">终端行高倍数 (0.8-2.0)</span>
+          </div>
+          <div className="settings-item-control">
+            <input
+              type="number"
+              min="0.8"
+              max="2.0"
+              step="0.1"
+              value={lineHeight}
+              onChange={(e) => setLineHeight(parseFloat(e.target.value))}
+              className="settings-input-number"
             />
           </div>
         </div>

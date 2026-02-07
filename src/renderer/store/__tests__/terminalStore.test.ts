@@ -82,10 +82,10 @@ describe('TerminalStore', () => {
 
       await createSession();
 
-      const state = useTerminalStore.getState();
-      expect(state.sessions).toHaveLength(1);
-      expect(state.sessions[0].name).toBe('Session 1');
-      expect(state.sessions[0].terminalId).toBe('terminal-1');
+       const state = useTerminalStore.getState();
+       expect(state.sessions).toHaveLength(1);
+       expect(state.sessions[0].name).toBe('Session 1');
+       expect(state.sessions[0].terminalIds[0]).toBe('terminal-1');
       expect(state.sessions[0].isVisible).toBe(true);
       expect(state.sessions[0].isNameSetByUser).toBe(false);
     });
@@ -119,10 +119,10 @@ describe('TerminalStore', () => {
       const state = useTerminalStore.getState();
       const sessionId = state.sessions[0].id;
       
-      expect(mockCreateInstance).toHaveBeenCalledWith(
-        sessionId,
-        'terminal-1'
-      );
+       expect(mockCreateInstance).toHaveBeenCalledWith(
+         'terminal-1',
+         sessionId
+       );
     });
 
     it('should set new session as active', async () => {
@@ -195,9 +195,9 @@ describe('TerminalStore', () => {
       await createSession('Test Session');
       const sessionId = useTerminalStore.getState().sessions[0].id;
 
-      deleteSession(sessionId);
+       deleteSession(sessionId);
 
-      expect(mockDestroyInstance).toHaveBeenCalledWith(sessionId);
+       expect(mockDestroyInstance).toHaveBeenCalledWith('terminal-1');
     });
 
     it('should dispose terminal PTY', async () => {
@@ -208,7 +208,7 @@ describe('TerminalStore', () => {
 
       deleteSession(session.id);
 
-      expect(window.terminal.dispose).toHaveBeenCalledWith({ id: session.terminalId });
+       expect(window.terminal.dispose).toHaveBeenCalledWith({ id: session.terminalIds[0] });
     });
 
     it('should delete session log file', async () => {
@@ -326,7 +326,7 @@ describe('TerminalStore', () => {
       hideSession(session.id);
       showSession(session.id);
 
-      expect(window.terminal.show).toHaveBeenCalledWith({ id: session.terminalId });
+       expect(window.terminal.show).toHaveBeenCalledWith({ id: session.terminalIds[0] });
     });
 
     it('should create tab if it does not exist', async () => {
@@ -385,11 +385,11 @@ describe('TerminalStore', () => {
       await createSession('Test Session');
       const session = useTerminalStore.getState().sessions[0];
 
-      vi.clearAllMocks(); // Clear previous calls
-      
-      hideSession(session.id);
+       vi.clearAllMocks(); // Clear previous calls
+       
+       hideSession(session.id);
 
-      expect(window.terminal.hide).toHaveBeenCalledWith({ id: session.terminalId });
+       expect(window.terminal.hide).toHaveBeenCalledWith({ id: session.terminalIds[0] });
     });
 
     it('should not throw when hiding non-existent session', () => {
@@ -484,11 +484,11 @@ describe('TerminalStore', () => {
       await createSession('Test Session');
       const session = useTerminalStore.getState().sessions[0];
 
-      vi.clearAllMocks();
-      
-      closeTab(session.id);
+       vi.clearAllMocks();
+       
+       closeTab(session.id);
 
-      expect(window.terminal.hide).toHaveBeenCalledWith({ id: session.terminalId });
+       expect(window.terminal.hide).toHaveBeenCalledWith({ id: session.terminalIds[0] });
     });
 
     it('should remove session from visibleSessionIds', async () => {
@@ -803,7 +803,7 @@ describe('TerminalStore', () => {
         // Clear tabs to test openTab independently
         useTerminalStore.setState({ tabs: [], activeTabId: null });
 
-        openTab('terminal', sessionId, 'My Terminal');
+         openTab('terminal', sessionId, undefined, 'My Terminal');
 
         const state = useTerminalStore.getState();
         expect(state.tabs).toHaveLength(1);
@@ -841,13 +841,13 @@ describe('TerminalStore', () => {
         const { createSession, openTab } = useTerminalStore.getState();
         
         await createSession('Test Session');
-        const sessionId = useTerminalStore.getState().sessions[0].id;
+        const session = useTerminalStore.getState().sessions[0];
 
-        openTab('terminal', sessionId);
-        openTab('terminal', sessionId); // Try to open again
+        openTab('terminal', session.id, session.terminalIds[0]);
+        openTab('terminal', session.id, session.terminalIds[0]); // Try to open again
 
         const state = useTerminalStore.getState();
-        expect(state.tabs.filter(t => t.sessionId === sessionId)).toHaveLength(1);
+        expect(state.tabs.filter(t => t.sessionId === session.id)).toHaveLength(1);
       });
 
       it('should not create duplicate settings tab', () => {
@@ -864,15 +864,15 @@ describe('TerminalStore', () => {
         const { createSession, openTab } = useTerminalStore.getState();
         
         await createSession('Test Session');
-        const sessionId = useTerminalStore.getState().sessions[0].id;
+        const session = useTerminalStore.getState().sessions[0];
 
-        openTab('terminal', sessionId);
+        openTab('terminal', session.id, session.terminalIds[0]);
         const firstTabId = useTerminalStore.getState().tabs[0].id;
         
         // Change active tab
         useTerminalStore.setState({ activeTabId: null });
         
-        openTab('terminal', sessionId); // Try to open again
+        openTab('terminal', session.id, session.terminalIds[0]); // Try to open again
 
         const state = useTerminalStore.getState();
         expect(state.activeTabId).toBe(firstTabId);

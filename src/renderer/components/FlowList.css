@@ -1,0 +1,154 @@
+.flow-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.flow-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.flow-list-header h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.btn-new-flow {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid #555;
+  color: #d4d4d4;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-new-flow:hover {
+  background: #37373d;
+  border-color: #007acc;
+  color: #007acc;
+}
+
+.flow-list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.flow-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #666;
+  text-align: center;
+}
+
+.flow-list-empty p {
+  margin: 0.25rem 0;
+}
+
+.flow-list-hint {
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.flow-tree-node {
+  user-select: none;
+}
+
+.flow-tree-item {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  margin: 0 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  gap: 0.4rem;
+}
+
+.flow-tree-item:hover {
+  background: #2a2d2e;
+}
+
+.flow-tree-item.selected {
+  background: #37373d;
+}
+
+.flow-tree-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #007acc;
+}
+
+.flow-tree-arrow {
+  font-size: 0.6rem;
+  color: #888;
+  transition: transform 0.15s;
+  width: 12px;
+  text-align: center;
+}
+
+.flow-tree-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.flow-tree-spacer {
+  width: 12px;
+}
+
+.flow-tree-icon {
+  font-size: 0.9rem;
+}
+
+.flow-tree-label {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #d4d4d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flow-tree-badge {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #3e3e3e;
+  color: #aaa;
+  font-weight: 600;
+}
+
+.flow-tree-badge.cron {
+  background: #1a3a3a;
+  color: #4ec9b0;
+}
+
+.flow-tree-badge.template {
+  background: #2a2a3a;
+  color: #9cdcfe;
+}
+
+.flow-tree-children {
+  margin-left: 0;
+}

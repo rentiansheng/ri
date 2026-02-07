@@ -22,15 +22,15 @@ export interface Session {
   isNameSetByUser: boolean;  // 名称是否由用户首次输入设置
 }
 
-// Tab types for unified tab system
-export type TabType = 'terminal' | 'settings';
+export type TabType = 'terminal' | 'settings' | 'file';
 
 export interface Tab {
-  id: string;  // Unique tab ID
+  id: string;
   type: TabType;
-  sessionId?: string;  // For terminal tabs
-  terminalId?: string;  // Specific terminal within session
-  title: string;  // Display title
+  sessionId?: string;
+  terminalId?: string;
+  filePath?: string;
+  title: string;
 }
 
 // Split pane layout for multi-terminal sessions
@@ -80,13 +80,13 @@ interface TerminalStore {
   closeTerminal: (sessionId: string, terminalId: string, force?: boolean) => void;  // Close specific terminal
   
   // New unified tab actions
-  openTab: (type: TabType, sessionId?: string, terminalId?: string, title?: string) => void;  // Open a new tab
-  closeTabById: (tabId: string) => void;  // Close tab by ID
-  setActiveTab: (tabId: string | null) => void;  // Set active tab
-  reorderTabsNew: (fromIndex: number, toIndex: number) => void;  // Reorder tabs
+  openTab: (type: TabType, sessionId?: string, terminalId?: string, title?: string) => void;
+  openFileTab: (filePath: string) => void;
+  closeTabById: (tabId: string) => void;
+  setActiveTab: (tabId: string | null) => void;
+  reorderTabsNew: (fromIndex: number, toIndex: number) => void;
   
-  // Helper methods
-  hasOpenTab: (sessionId: string) => boolean;  // Check if session has open tab
+  hasOpenTab: (sessionId: string) => boolean;
   
   // Session layout management
   setSessionLayout: (sessionId: string, layout: SplitPane) => void;
@@ -499,10 +499,31 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       activeTabId: tabId,
     }));
     
-    // Also update session visibility for terminal tabs
     if (type === 'terminal' && sessionId) {
       get().showSession(sessionId);
     }
+  },
+  
+  openFileTab: (filePath: string) => {
+    const existingTab = get().tabs.find(t => t.type === 'file' && t.filePath === filePath);
+    
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+    
+    const fileName = filePath.split('/').pop() || filePath;
+    const newTab: Tab = {
+      id: nanoid(),
+      type: 'file',
+      filePath,
+      title: `📄 ${fileName}`,
+    };
+    
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
   },
   
   closeTabById: (tabId: string) => {

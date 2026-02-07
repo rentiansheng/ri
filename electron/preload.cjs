@@ -108,6 +108,16 @@ contextBridge.exposeInMainWorld('flow', {
   clearLogs: (flowId) => ipcRenderer.send('flow:clear-logs', flowId),
 });
 
+contextBridge.exposeInMainWorld('file', {
+  read: (filePath) => ipcRenderer.invoke('file:read', filePath),
+  write: (filePath, content) => ipcRenderer.invoke('file:write', filePath, content),
+  exists: (filePath) => ipcRenderer.invoke('file:exists', filePath),
+  stat: (filePath) => ipcRenderer.invoke('file:stat', filePath),
+  readDir: (dirPath) => ipcRenderer.invoke('file:read-dir', dirPath),
+  openDialog: (options) => ipcRenderer.invoke('file:open-dialog', options),
+  saveDialog: (options) => ipcRenderer.invoke('file:save-dialog', options),
+});
+
 contextBridge.exposeInMainWorld('opencodePlugin', {
   check: () => ipcRenderer.invoke('opencode-plugin:check'),
   install: () => ipcRenderer.invoke('opencode-plugin:install'),

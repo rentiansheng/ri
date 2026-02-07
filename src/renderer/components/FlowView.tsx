@@ -4,7 +4,11 @@ import { Flow } from '../types/global.d';
 import { nanoid } from 'nanoid';
 import './FlowView.css';
 
-const FlowView: React.FC = () => {
+interface FlowViewProps {
+  initialPath?: string[];
+}
+
+const FlowView: React.FC<FlowViewProps> = ({ initialPath }) => {
   const [flows, setFlows] = useState<Flow[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFlow, setEditingFlow] = useState<Partial<Flow> | null>(null);
@@ -13,7 +17,13 @@ const FlowView: React.FC = () => {
   
   const { createSession } = useTerminalStore();
 
-  const [currentPath, setCurrentPath] = useState<string[]>([]);
+  const [currentPath, setCurrentPath] = useState<string[]>(initialPath || []);
+
+  useEffect(() => {
+    if (initialPath) {
+      setCurrentPath(initialPath);
+    }
+  }, [initialPath]);
 
   useEffect(() => {
     loadFlows();
@@ -107,6 +117,17 @@ const FlowView: React.FC = () => {
     setLogViewFlow(flow);
   };
 
+  const openFile = async () => {
+    try {
+      const result = await window.file.openDialog({});
+      if (result.success && result.filePaths && result.filePaths.length > 0) {
+        useTerminalStore.getState().openFileTab(result.filePaths[0]);
+      }
+    } catch (error) {
+      console.error('Failed to open file dialog:', error);
+    }
+  };
+
   return (
     <div className="flow-view">
       <div className="flow-header">
@@ -122,9 +143,14 @@ const FlowView: React.FC = () => {
             ))}
           </div>
         </div>
-        <button className="add-flow-btn" onClick={() => { setEditingFlow({ mode: 'template', commands: [], path: currentPath.join('/') }); setIsModalOpen(true); }}>
-          + New Flow
-        </button>
+        <div className="flow-header-actions" style={{ display: 'flex', gap: '8px' }}>
+          <button className="add-flow-btn secondary" onClick={openFile} title="Open File">
+            📄 Open File
+          </button>
+          <button className="add-flow-btn" onClick={() => { setEditingFlow({ mode: 'template', commands: [], path: currentPath.join('/') }); setIsModalOpen(true); }}>
+            + New Flow
+          </button>
+        </div>
       </div>
       
       <div className="flow-content">
@@ -157,6 +183,7 @@ const FlowView: React.FC = () => {
             <div key={flow.id} className="flow-card">
               <div className="flow-card-header">
                 <div className="flow-card-title">
+                  {flow.icon && <span className="flow-icon">{flow.icon}</span>}
                   <h4>{flow.name}</h4>
                   <span className={`flow-mode-badge ${flow.mode}`}>{flow.mode.toUpperCase()}</span>
                 </div>
@@ -167,6 +194,10 @@ const FlowView: React.FC = () => {
                   <button className="action-btn" title="Delete" onClick={() => deleteFlow(flow.id)}>🗑️</button>
                 </div>
               </div>
+              
+              {flow.description && (
+                <div className="flow-card-description">{flow.description}</div>
+              )}
               
               <div className="flow-card-info">
                 <div className="flow-status">
@@ -198,6 +229,25 @@ const FlowView: React.FC = () => {
                   value={editingFlow?.name || ''} 
                   onChange={e => setEditingFlow({ ...editingFlow, name: e.target.value })}
                   placeholder="e.g. Daily Cleanup"
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <input 
+                  type="text" 
+                  value={editingFlow?.description || ''} 
+                  onChange={e => setEditingFlow({ ...editingFlow, description: e.target.value })}
+                  placeholder="Brief description of this flow"
+                />
+              </div>
+              <div className="form-group">
+                <label>Icon (emoji)</label>
+                <input 
+                  type="text" 
+                  value={editingFlow?.icon || ''} 
+                  onChange={e => setEditingFlow({ ...editingFlow, icon: e.target.value })}
+                  placeholder="🚀"
+                  style={{ width: '60px' }}
                 />
               </div>
               <div className="form-group">

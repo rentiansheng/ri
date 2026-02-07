@@ -1,0 +1,317 @@
+.file-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.file-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #252526;
+  border-bottom: 1px solid #3e3e3e;
+  gap: 16px;
+}
+
+.file-viewer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-viewer-icon {
+  font-size: 1rem;
+}
+
+.file-viewer-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-viewer-lang {
+  font-size: 0.75rem;
+  color: #888;
+  background: #3e3e3e;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.file-viewer-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-viewer-search-input {
+  background: #3c3c3c;
+  border: 1px solid #555;
+  color: #d4d4d4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  width: 200px;
+  outline: none;
+}
+
+.file-viewer-search-input:focus {
+  border-color: #007acc;
+}
+
+.file-viewer-search-count {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.file-viewer-search-btn {
+  background: #3e3e3e;
+  border: none;
+  color: #d4d4d4;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.file-viewer-search-btn:hover {
+  background: #4e4e4e;
+}
+
+.file-viewer-close {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 1rem;
+}
+
+.file-viewer-close:hover {
+  color: #d4d4d4;
+}
+
+.file-viewer-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-viewer-loading,
+.file-viewer-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #888;
+}
+
+.file-viewer-error {
+  color: #f44747;
+}
+
+.file-viewer-code-wrapper {
+  display: flex;
+  height: 100%;
+  overflow: auto;
+}
+
+.file-viewer-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+  background: #1e1e1e;
+  border-right: 1px solid #3e3e3e;
+  user-select: none;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.line-number {
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: #858585;
+  text-align: right;
+  line-height: 20px;
+  min-width: 40px;
+}
+
+.line-number.has-match {
+  background: rgba(255, 200, 0, 0.1);
+}
+
+.line-number.current-match {
+  background: rgba(255, 200, 0, 0.3);
+  color: #fff;
+}
+
+.file-viewer-pre {
+  margin: 0;
+  padding: 12px 16px;
+  flex: 1;
+  overflow: visible;
+  background: transparent;
+}
+
+.file-viewer-pre code {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.85rem;
+  line-height: 20px;
+  white-space: pre;
+}
+
+.search-highlight {
+  background: #ffc800;
+  color: #000;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+/* Prism.js theme overrides for dark mode */
+.file-viewer code[class*="language-"],
+.file-viewer pre[class*="language-"] {
+  color: #d4d4d4;
+  background: none;
+  text-shadow: none;
+}
+
+.file-viewer .token.comment,
+.file-viewer .token.prolog,
+.file-viewer .token.doctype,
+.file-viewer .token.cdata {
+  color: #6a9955;
+}
+
+.file-viewer .token.punctuation {
+  color: #d4d4d4;
+}
+
+.file-viewer .token.property,
+.file-viewer .token.tag,
+.file-viewer .token.boolean,
+.file-viewer .token.number,
+.file-viewer .token.constant,
+.file-viewer .token.symbol,
+.file-viewer .token.deleted {
+  color: #b5cea8;
+}
+
+.file-viewer .token.selector,
+.file-viewer .token.attr-name,
+.file-viewer .token.string,
+.file-viewer .token.char,
+.file-viewer .token.builtin,
+.file-viewer .token.inserted {
+  color: #ce9178;
+}
+
+.file-viewer .token.operator,
+.file-viewer .token.entity,
+.file-viewer .token.url,
+.file-viewer .language-css .token.string,
+.file-viewer .style .token.string {
+  color: #d4d4d4;
+}
+
+.file-viewer .token.atrule,
+.file-viewer .token.attr-value,
+.file-viewer .token.keyword {
+  color: #569cd6;
+}
+
+.file-viewer .token.function,
+.file-viewer .token.class-name {
+  color: #dcdcaa;
+}
+
+.file-viewer .token.regex,
+.file-viewer .token.important,
+.file-viewer .token.variable {
+  color: #d16969;
+}
+
+.file-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-viewer-btn {
+  background: #3e3e3e;
+  border: 1px solid #555;
+  color: #d4d4d4;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.file-viewer-btn:hover {
+  background: #4e4e4e;
+  border-color: #666;
+}
+
+.file-viewer-btn.primary {
+  background: #007acc;
+  border-color: #007acc;
+  color: #fff;
+}
+
+.file-viewer-btn.primary:hover {
+  background: #0062a3;
+}
+
+.file-viewer-btn.icon-only {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+}
+
+.file-viewer-btn.icon-only:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.save-status {
+  font-size: 0.8rem;
+  margin-right: 8px;
+}
+
+.save-status.saved {
+  color: #4ec9b0;
+}
+
+.save-status.saving {
+  color: #d4d4d4;
+}
+
+.save-status.error {
+  color: #f44747;
+}
+
+.file-viewer-editor-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+}
+
+.file-viewer-editor {
+  flex: 1;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.85rem;
+  line-height: 20px;
+  padding: 12px 16px;
+  border: none;
+  resize: none;
+  outline: none;
+}

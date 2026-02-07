@@ -7,11 +7,13 @@ import Sidebar from './components/Sidebar';
 import SessionList from './components/SessionList';
 import NotifyList from './components/NotifyList';
 import NotifyDetail from './components/NotifyDetail';
+import FlowList from './components/FlowList';
 import Terminal from './components/Terminal';
 import SplitTerminalView from './components/SplitTerminalView';
 import { TabBar } from './components/TabBar';
 import FlowView from './components/FlowView';
 import SettingsView from './components/SettingsView';
+import FileViewer from './components/FileViewer';
 import { NotificationToastContainer } from './components/NotificationToast';
 import { useAIToolMonitor } from './hooks/useAIToolMonitor';
 import './styles/App.css';
@@ -47,6 +49,22 @@ function App() {
   
   // State for selected items in notify view
   const [selectedNotifySessionId, setSelectedNotifySessionId] = useState<string | null>(null);
+  
+  const [selectedFlowPath, setSelectedFlowPath] = useState<string[]>([]);
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
+
+  const handleFlowSelect = (flow: any) => {
+    setSelectedFlowId(flow.id);
+    if (flow.path) {
+      setSelectedFlowPath(flow.path.split('/'));
+    } else {
+      setSelectedFlowPath([]);
+    }
+  };
+
+  const handleFolderSelect = (path: string) => {
+    setSelectedFlowPath(path ? path.split('/') : []);
+  };
   
   // Load configuration on mount
   useEffect(() => {
@@ -115,8 +133,12 @@ function App() {
 
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = e.clientX - 48; // 减去左侧图标栏宽度
-      // 限制宽度在 150px - 500px 之间
-      if (newWidth >= 150 && newWidth <= 500) {
+      if (newWidth < 80) {
+        // Snap to collapsed when dragged near the edge
+        setSidebarCollapsed(true);
+        setNavigationWidth(250);
+        setIsResizing(false);
+      } else if (newWidth >= 150 && newWidth <= 500) {
         setNavigationWidth(newWidth);
       }
     };
@@ -154,7 +176,6 @@ function App() {
     setIsResizing(true);
   };
 
-  // Render navigation panel based on active view
   const renderNavigationPanel = React.useMemo(() => {
     switch (activeView) {
       case 'sessions':
@@ -167,13 +188,20 @@ function App() {
           />
         );
       case 'flow':
+        return (
+          <FlowList 
+            onFlowSelect={handleFlowSelect}
+            onFolderSelect={handleFolderSelect}
+            selectedFlowId={selectedFlowId}
+            selectedPath={selectedFlowPath.join('/')}
+          />
+        );
       case 'settings':
-        // These views don't use the navigation panel
         return null;
       default:
         return null;
     }
-  }, [activeView, selectedNotifySessionId]);
+  }, [activeView, selectedNotifySessionId, selectedFlowId, selectedFlowPath]);
 
   // Render main content area based on active tab
   const renderMainContent = React.useMemo(() => {
@@ -205,7 +233,7 @@ function App() {
       
       // For other views without tabs, still render the view
       if (activeView === 'flow') {
-        return <FlowView />;
+        return <FlowView initialPath={selectedFlowPath} />;
       }
       
       return null;
@@ -265,10 +293,15 @@ function App() {
             })}
           </div>
           
-          {/* Render settings for active settings tab */}
           {activeTab?.type === 'settings' && (
             <div className="settings-area">
               <SettingsView />
+            </div>
+          )}
+          
+          {activeTab?.type === 'file' && activeTab.filePath && (
+            <div className="file-viewer-area">
+              <FileViewer filePath={activeTab.filePath} />
             </div>
           )}
         </div>
@@ -280,12 +313,16 @@ function App() {
     <div className="app">
       {/* Left: Icon tabs (48px) */}
       <aside className="app-sidebar-icons">
-        <Sidebar activeView={activeView} onViewChange={setActiveView} />
+        <Sidebar 
+          activeView={activeView} 
+          onViewChange={setActiveView}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleCollapse={setSidebarCollapsed}
+        />
       </aside>
       
-      {/* Left: Navigation panel (250px, collapsible) - show for sessions, notify */}
-      {(activeView === 'sessions' || activeView === 'notify') && (
-        <>
+      {(activeView === 'sessions' || activeView === 'notify' || activeView === 'flow') && (
+        <div className="navigation-wrapper">
           <aside 
             className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}
             data-testid="navigation-panel"
@@ -297,26 +334,15 @@ function App() {
             {renderNavigationPanel}
           </aside>
           
-          {/* Resize handle */}
           {!sidebarCollapsed && (
             <div 
               className="navigation-resize-handle"
               data-testid="navigation-resize-handle"
               onMouseDown={handleResizeStart}
-              style={{ left: 48 + navigationWidth }}
+              style={{ left: navigationWidth }}
             />
           )}
-          
-          {/* Navigation toggle button */}
-          <button 
-            className="navigation-toggle" 
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? '展开导航栏' : '收起导航栏'}
-            style={{ left: sidebarCollapsed ? 48 : 48 + navigationWidth }}
-          >
-            {sidebarCollapsed ? '▶' : '◀'}
-          </button>
-        </>
+        </div>
       )}
       
       {/* Right: Main content area */}

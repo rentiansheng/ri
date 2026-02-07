@@ -30,11 +30,13 @@ export interface SessionLogStats {
 export interface Flow {
   id: string;
   name: string;
-  path?: string;           // Folder path: "category/subcategory"
+  description?: string;
+  icon?: string;
+  path?: string;
   mode: 'cron' | 'template';
   commands: string[];
   cwd?: string;
-  cron?: string;           // Minute-level cron: "*/5 * * * *"
+  cron?: string;
   enabled: boolean;
   lastRunTime?: number;
   lastRunStatus?: 'success' | 'error';
@@ -260,6 +262,31 @@ export interface FlowAPI {
   clearLogs: (flowId: string) => void;
 }
 
+export interface FileStat {
+  size: number;
+  isFile: boolean;
+  isDirectory: boolean;
+  mtime: number;
+  ctime: number;
+}
+
+export interface FileEntry {
+  name: string;
+  isFile: boolean;
+  isDirectory: boolean;
+  path: string;
+}
+
+export interface FileAPI {
+  read: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
+  write: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  exists: (filePath: string) => Promise<{ success: boolean; exists?: boolean; error?: string }>;
+  stat: (filePath: string) => Promise<{ success: boolean; stat?: FileStat; error?: string }>;
+  readDir: (dirPath: string) => Promise<{ success: boolean; files?: FileEntry[]; error?: string }>;
+  openDialog: (options?: object) => Promise<{ success: boolean; canceled?: boolean; filePaths?: string[]; error?: string }>;
+  saveDialog: (options?: object) => Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }>;
+}
+
 export interface OpencodePluginInfo {
   installed: boolean;
   path: string;
@@ -358,6 +385,7 @@ declare global {
     notification: NotificationAPI;
     opencode: OpencodeAPI;
     flow: FlowAPI;
+    file: FileAPI;
     opencodePlugin: OpencodePluginAPI;
   }
 }

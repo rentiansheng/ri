@@ -107,6 +107,16 @@
   font-size: 1rem;
 }
 
+.flow-icon {
+  font-size: 1.2rem;
+}
+
+.flow-card-description {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: -4px;
+}
+
 .flow-mode-badge {
   font-size: 0.7rem;
   padding: 2px 6px;

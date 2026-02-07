@@ -80,6 +80,98 @@ configManager.on('config-changed', (newConfig) => {
   }
 });
 
+// ------------------ IPC: File Operations ------------------
+const fs = require('fs');
+const { dialog } = require('electron');
+
+ipcMain.handle('file:read', async (event, filePath) => {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return { success: true, content };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:write', async (event, filePath, content) => {
+  try {
+    fs.writeFileSync(filePath, content, 'utf8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:exists', async (event, filePath) => {
+  try {
+    return { success: true, exists: fs.existsSync(filePath) };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:stat', async (event, filePath) => {
+  try {
+    const stats = fs.statSync(filePath);
+    return {
+      success: true,
+      stat: {
+        size: stats.size,
+        isFile: stats.isFile(),
+        isDirectory: stats.isDirectory(),
+        mtime: stats.mtime.getTime(),
+        ctime: stats.ctime.getTime(),
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:read-dir', async (event, dirPath) => {
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    const files = entries.map(entry => ({
+      name: entry.name,
+      isFile: entry.isFile(),
+      isDirectory: entry.isDirectory(),
+      path: path.join(dirPath, entry.name),
+    }));
+    return { success: true, files };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:open-dialog', async (event, options) => {
+  try {
+    const result = await dialog.showOpenDialog(options || {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'yaml', 'yml', 'js', 'ts', 'tsx', 'jsx', 'css', 'html'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    return { success: true, canceled: result.canceled, filePaths: result.filePaths };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:save-dialog', async (event, options) => {
+  try {
+    const result = await dialog.showSaveDialog(options || {
+      filters: [
+        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'yaml', 'yml'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    return { success: true, canceled: result.canceled, filePath: result.filePath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // ------------------ IPC: OpenCode ------------------
 
 ipcMain.handle('opencode:start-server', async () => {

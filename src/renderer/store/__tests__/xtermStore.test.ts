@@ -95,11 +95,11 @@ describe('XTermStore', () => {
       const sessionId = 'session-1';
       const terminalId = 'terminal-1';
 
-      const instance = useXTermStore.getState().createInstance(sessionId, terminalId);
+       const instance = useXTermStore.getState().createInstance(terminalId, sessionId);
 
-      expect(instance).toBeDefined();
-      expect(instance.sessionId).toBe(sessionId);
-      expect(instance.terminalId).toBe(terminalId);
+       expect(instance).toBeDefined();
+       expect(instance.sessionId).toBe(sessionId);
+       expect(instance.terminalId).toBe(terminalId);
       expect(instance.xterm).toBeInstanceOf(MockTerminal);
       expect(instance.fitAddon).toBeInstanceOf(MockFitAddon);
       expect(instance.searchAddon).toBeInstanceOf(MockSearchAddon);
@@ -113,34 +113,34 @@ describe('XTermStore', () => {
         theme: { background: '#000000' },
       };
 
-      useXTermStore.getState().setTerminalConfig(config);
-      const instance = useXTermStore.getState().createInstance('session-1', 'terminal-1');
+       useXTermStore.getState().setTerminalConfig(config);
+       const instance = useXTermStore.getState().createInstance('terminal-1', 'session-1');
 
       expect(instance.xterm.options.fontSize).toBe(20);
       expect(instance.xterm.options.fontFamily).toBe('Consolas');
     });
 
-    it('should return existing instance if already created', () => {
-      const sessionId = 'session-1';
+     it('should return existing instance if already created', () => {
+       const sessionId = 'session-1';
 
-      const instance1 = useXTermStore.getState().createInstance(sessionId, 'terminal-1');
-      const instance2 = useXTermStore.getState().createInstance(sessionId, 'terminal-2');
+       const instance1 = useXTermStore.getState().createInstance('terminal-1', sessionId);
+       const instance2 = useXTermStore.getState().createInstance('terminal-1', 'session-2');
 
-      expect(instance1).toBe(instance2);
-    });
+       expect(instance1).toBe(instance2);
+     });
 
-    it('should load all addons', () => {
-      const instance = useXTermStore.getState().createInstance('session-1', 'terminal-1');
+     it('should load all addons', () => {
+       const instance = useXTermStore.getState().createInstance('terminal-1', 'session-1');
 
       expect(instance.xterm.loadAddon).toHaveBeenCalledTimes(4); // fit, search, weblinks, unicode11
     });
   });
 
   describe('getInstance', () => {
-    it('should return existing instance', () => {
-      const sessionId = 'session-1';
-      const created = useXTermStore.getState().createInstance(sessionId, 'terminal-1');
-      const retrieved = useXTermStore.getState().getInstance(sessionId);
+     it('should return existing instance', () => {
+       const sessionId = 'session-1';
+       const created = useXTermStore.getState().createInstance('terminal-1', sessionId);
+       const retrieved = useXTermStore.getState().getInstance('terminal-1');
 
       expect(retrieved).toBe(created);
     });
@@ -153,14 +153,14 @@ describe('XTermStore', () => {
   });
 
   describe('markAsOpened', () => {
-    it('should mark instance as opened', () => {
-      const sessionId = 'session-1';
-      useXTermStore.getState().createInstance(sessionId, 'terminal-1');
+     it('should mark instance as opened', () => {
+       const sessionId = 'session-1';
+       useXTermStore.getState().createInstance('terminal-1', sessionId);
 
-      useXTermStore.getState().markAsOpened(sessionId);
+       useXTermStore.getState().markAsOpened('terminal-1');
 
-      const instance = useXTermStore.getState().getInstance(sessionId);
-      expect(instance?.isOpened).toBe(true);
+       const instance = useXTermStore.getState().getInstance('terminal-1');
+       expect(instance?.isOpened).toBe(true);
     });
 
     it('should not throw for non-existent session', () => {
@@ -171,21 +171,21 @@ describe('XTermStore', () => {
   });
 
   describe('destroyInstance', () => {
-    it('should remove instance from store', () => {
-      const sessionId = 'session-1';
-      useXTermStore.getState().createInstance(sessionId, 'terminal-1');
+     it('should remove instance from store', () => {
+       const sessionId = 'session-1';
+       useXTermStore.getState().createInstance('terminal-1', sessionId);
 
-      useXTermStore.getState().destroyInstance(sessionId);
+       useXTermStore.getState().destroyInstance('terminal-1');
 
-      const instance = useXTermStore.getState().getInstance(sessionId);
-      expect(instance).toBeUndefined();
+       const instance = useXTermStore.getState().getInstance('terminal-1');
+       expect(instance).toBeUndefined();
     });
 
-    it('should call xterm dispose method', () => {
-      const sessionId = 'session-1';
-      const instance = useXTermStore.getState().createInstance(sessionId, 'terminal-1');
+     it('should call xterm dispose method', () => {
+       const sessionId = 'session-1';
+       const instance = useXTermStore.getState().createInstance('terminal-1', sessionId);
 
-      useXTermStore.getState().destroyInstance(sessionId);
+       useXTermStore.getState().destroyInstance('terminal-1');
 
       expect(instance.xterm.dispose).toHaveBeenCalled();
     });
@@ -198,9 +198,9 @@ describe('XTermStore', () => {
   });
 
   describe('clearAll', () => {
-    it('should remove all instances', () => {
-      useXTermStore.getState().createInstance('session-1', 'terminal-1');
-      useXTermStore.getState().createInstance('session-2', 'terminal-2');
+     it('should remove all instances', () => {
+       useXTermStore.getState().createInstance('terminal-1', 'session-1');
+       useXTermStore.getState().createInstance('terminal-2', 'session-2');
 
       expect(useXTermStore.getState().instances.size).toBe(2);
 
@@ -209,9 +209,9 @@ describe('XTermStore', () => {
       expect(useXTermStore.getState().instances.size).toBe(0);
     });
 
-    it('should call dispose on all instances', () => {
-      const instance1 = useXTermStore.getState().createInstance('session-1', 'terminal-1');
-      const instance2 = useXTermStore.getState().createInstance('session-2', 'terminal-2');
+     it('should call dispose on all instances', () => {
+       const instance1 = useXTermStore.getState().createInstance('terminal-1', 'session-1');
+       const instance2 = useXTermStore.getState().createInstance('terminal-2', 'session-2');
 
       useXTermStore.getState().clearAll();
 
@@ -221,22 +221,22 @@ describe('XTermStore', () => {
   });
 
   describe('Multiple instances', () => {
-    it('should manage multiple independent instances', () => {
-      const instance1 = useXTermStore.getState().createInstance('session-1', 'terminal-1');
-      const instance2 = useXTermStore.getState().createInstance('session-2', 'terminal-2');
+     it('should manage multiple independent instances', () => {
+       const instance1 = useXTermStore.getState().createInstance('terminal-1', 'session-1');
+       const instance2 = useXTermStore.getState().createInstance('terminal-2', 'session-2');
 
       expect(instance1).not.toBe(instance2);
       expect(useXTermStore.getState().instances.size).toBe(2);
     });
 
-    it('should destroy specific instance without affecting others', () => {
-      useXTermStore.getState().createInstance('session-1', 'terminal-1');
-      const instance2 = useXTermStore.getState().createInstance('session-2', 'terminal-2');
+     it('should destroy specific instance without affecting others', () => {
+       useXTermStore.getState().createInstance('terminal-1', 'session-1');
+       const instance2 = useXTermStore.getState().createInstance('terminal-2', 'session-2');
 
-      useXTermStore.getState().destroyInstance('session-1');
+       useXTermStore.getState().destroyInstance('terminal-1');
 
-      expect(useXTermStore.getState().getInstance('session-1')).toBeUndefined();
-      expect(useXTermStore.getState().getInstance('session-2')).toBe(instance2);
+       expect(useXTermStore.getState().getInstance('terminal-1')).toBeUndefined();
+       expect(useXTermStore.getState().getInstance('terminal-2')).toBe(instance2);
     });
   });
 });
