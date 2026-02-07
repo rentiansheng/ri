@@ -108,6 +108,19 @@ function App() {
     return cleanup;
   }, []);
   
+  useEffect(() => {
+    if (!window.terminal.onViewFile) {
+      console.warn('[App] window.terminal.onViewFile not available - restart Electron to enable');
+      return;
+    }
+    const openFileTab = useTerminalStore.getState().openFileTab;
+    const cleanup = window.terminal.onViewFile(({ filePath }: { filePath: string }) => {
+      console.log('[App] View file request received:', filePath);
+      openFileTab(filePath);
+    });
+    return cleanup;
+  }, []);
+  
   // Start AI tool monitoring
   useAIToolMonitor();
 

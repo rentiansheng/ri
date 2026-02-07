@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld('terminal', {
     ipcRenderer.on('terminal:exit', fn);
     return () => ipcRenderer.removeListener('terminal:exit', fn);
   },
+  onViewFile: (handler) => {
+    const fn = (_event, payload) => handler(payload);
+    ipcRenderer.on('terminal:view-file', fn);
+    return () => ipcRenderer.removeListener('terminal:view-file', fn);
+  },
 });
 
 contextBridge.exposeInMainWorld('sessionLog', {
@@ -137,5 +142,11 @@ contextBridge.exposeInMainWorld('opencodePlugin', {
   enableConfig: () => ipcRenderer.invoke('opencode-plugin:enable-config'),
   disableConfig: () => ipcRenderer.invoke('opencode-plugin:disable-config'),
   openConfig: () => ipcRenderer.invoke('opencode-plugin:open-config'),
+});
+
+contextBridge.exposeInMainWorld('remoteControl', {
+  getStatus: () => ipcRenderer.invoke('remote-control:get-status'),
+  initialize: () => ipcRenderer.invoke('remote-control:initialize'),
+  cleanup: () => ipcRenderer.invoke('remote-control:cleanup'),
 });
 

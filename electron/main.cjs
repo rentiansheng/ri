@@ -6,6 +6,7 @@ const NotificationManager = require('./notificationManager.cjs');
 const OpencodeManager = require('./opencodeManager.cjs');
 const OpencodePluginManager = require('./opencodePlugin.cjs');
 const FlowManager = require('./flowManager.cjs');
+const RemoteControlManager = require('./remoteControlManager.cjs');
 
 // Set application name as early as possible (must be before app.whenReady)
 app.setName('RI');
@@ -54,6 +55,15 @@ terminalManager.on('terminal-notification', async ({ sessionId, sessionName, typ
   });
 });
 
+// Listen for view file requests (triggered by magic strings in output)
+// Format: __RI_VIEW:/path/to/file__ or OSC: \x1b]__RI_VIEW:/path__\x07
+terminalManager.on('terminal-view-file', ({ sessionId, terminalId, filePath }) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  
+  console.log(`[Main] View file request: ${filePath} from terminal ${terminalId}`);
+  mainWindow.webContents.send('terminal:view-file', { sessionId, terminalId, filePath });
+});
+
 // Initialize notification manager (will be set after window is created)
 let notificationManager = null;
 
@@ -65,15 +75,16 @@ opencodeManager.setConfig(config);
 const opencodePluginManager = new OpencodePluginManager();
 opencodePluginManager.setConfigManager(configManager);
 
-// Watch for config changes and apply them
+const remoteControlManager = new RemoteControlManager(terminalManager, config);
+
 configManager.on('config-changed', (newConfig) => {
   console.log('[Main] Config changed, applying...');
   terminalManager.applyConfig(newConfig);
   
-  // Update OpenCode manager config
   opencodeManager.setConfig(newConfig);
   
-  // Update notification manager config
+  remoteControlManager.setConfig(newConfig);
+  
   if (notificationManager) {
     notificationManager.updateConfig(newConfig);
     console.log('[Main] Notification config updated');
@@ -567,7 +578,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Create application menu
   createMenu();
   
   createWindow();
@@ -576,7 +586,6 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
   
-  // Auto-start OpenCode if enabled
   const currentConfig = configManager.getConfig();
   if (currentConfig.opencode?.enabled) {
     const delay = currentConfig.opencode.startupDelay || 2000;
@@ -593,37 +602,50 @@ app.whenReady().then(() => {
       }
     }, delay);
   }
+  
+  if (currentConfig.remoteControl?.enabled) {
+    console.log('[Main] Initializing Remote Control...');
+    remoteControlManager.initialize().catch(err => {
+      console.error('[Main] Failed to initialize Remote Control:', err);
+    });
+  }
 });
 
-// Clean up all terminals before app quits
 const cleanupTerminals = () => {
   console.log('[Main] Cleaning up all terminal processes...');
   terminalManager.disposeAll();
   configManager.cleanup();
 };
 
-// Clean up OpenCode processes
 const cleanupOpencode = () => {
   console.log('[Main] Cleaning up OpenCode processes...');
   opencodeManager.cleanup();
+};
+
+const cleanupRemoteControl = () => {
+  console.log('[Main] Cleaning up Remote Control...');
+  remoteControlManager.cleanup();
 };
 
 app.on('before-quit', (event) => {
   console.log('[Main] App is about to quit...');
   cleanupTerminals();
   cleanupOpencode();
+  cleanupRemoteControl();
 });
 
 app.on('will-quit', () => {
   console.log('[Main] App will quit...');
   cleanupTerminals();
   cleanupOpencode();
+  cleanupRemoteControl();
 });
 
 app.on('window-all-closed', () => {
   console.log('[Main] All windows closed...');
   cleanupTerminals();
   cleanupOpencode();
+  cleanupRemoteControl();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -933,6 +955,38 @@ ipcMain.handle('notification:test-channel', async (_event, channelType) => {
     return result;
   } catch (error) {
     console.error('[Main] Failed to test channel:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ------------------ IPC: Remote Control ------------------
+
+ipcMain.handle('remote-control:get-status', async () => {
+  try {
+    const status = remoteControlManager.getStatus();
+    return { success: true, status };
+  } catch (error) {
+    console.error('[Main] Failed to get remote control status:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:initialize', async () => {
+  try {
+    await remoteControlManager.initialize();
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Failed to initialize remote control:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:cleanup', async () => {
+  try {
+    await remoteControlManager.cleanup();
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Failed to cleanup remote control:', error);
     return { success: false, error: error.message };
   }
 });

@@ -1,5 +1,7 @@
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const EventEmitter = require('events');
+const path = require('path');
+const os = require('os');
 
 /**
  * OpenCode Manager
@@ -34,12 +36,51 @@ class OpencodeManager extends EventEmitter {
     // Port detection timeouts
     this.serverPortTimeout = null;
     this.webPortTimeout = null;
-    this.PORT_DETECTION_TIMEOUT = 10000; // 10 seconds
+    this.PORT_DETECTION_TIMEOUT = 30000; // 30 seconds
   }
   
-  /**
-   * Set configuration
-   */
+   /**
+    * Check if opencode command exists in PATH
+    */
+   checkOpencodeExists() {
+     try {
+       // Try to find opencode using which command
+       const command = process.platform === 'win32' ? 'where' : 'which';
+       execSync(`${command} opencode`, { stdio: 'pipe' });
+       return true;
+     } catch (error) {
+       return false;
+     }
+   }
+   
+   /**
+    * Get enhanced PATH with common installation locations
+    */
+   getEnhancedPath() {
+     const envPath = process.env.PATH || '';
+     const commonPaths = [
+       '/usr/local/bin',
+       '/opt/homebrew/bin',
+       path.join(os.homedir(), '.local', 'bin'),
+       path.join(os.homedir(), 'bin')
+     ];
+     
+     const pathArray = envPath.split(path.delimiter);
+     const uniquePaths = [...pathArray];
+     
+     // Add common paths if not already present
+     for (const commonPath of commonPaths) {
+       if (!pathArray.includes(commonPath)) {
+         uniquePaths.push(commonPath);
+       }
+     }
+     
+     return uniquePaths.join(path.delimiter);
+   }
+   
+   /**
+    * Set configuration
+    */
   setConfig(config) {
     this.config = config;
   }
@@ -109,25 +150,38 @@ class OpencodeManager extends EventEmitter {
     return null;
   }
   
-  /**
-   * Start OpenCode server
-   */
-  async startServer() {
-    if (this.serverProcess) {
-      this.addLog('server', 'info', 'Server already running');
-      return { success: false, error: 'Server already running' };
-    }
-    
-    try {
-      this.addLog('server', 'info', 'Starting OpenCode server...');
-      
-      const logLevel = (this.config?.opencode?.logLevel || 'INFO').toUpperCase();
-      const args = ['serve', '--port', '0', '--print-logs', '--log-level', logLevel];
-      
-      this.serverProcess = spawn('opencode', args, {
-        detached: false,
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+   /**
+    * Start OpenCode server
+    */
+   async startServer() {
+     if (this.serverProcess) {
+       this.addLog('server', 'info', 'Server already running');
+       return { success: false, error: 'Server already running' };
+     }
+     
+     // Check if opencode command exists
+     if (!this.checkOpencodeExists()) {
+       const errorMsg = 'opencode command not found. Please ensure opencode is installed and in PATH.';
+       this.addLog('server', 'error', errorMsg);
+       this.updateStatus({ lastError: errorMsg });
+       return { success: false, error: errorMsg };
+     }
+     
+     try {
+       this.addLog('server', 'info', 'Starting OpenCode server...');
+       
+       const logLevel = (this.config?.opencode?.logLevel || 'INFO').toUpperCase();
+       const args = ['serve', '--port', '0', '--print-logs', '--log-level', logLevel];
+       
+       this.serverProcess = spawn('opencode', args, {
+         detached: false,
+         stdio: ['ignore', 'pipe', 'pipe'],
+         shell: true,
+         env: {
+           ...process.env,
+           PATH: this.getEnhancedPath()
+         }
+       });
       
       const pid = this.serverProcess.pid;
       
@@ -236,25 +290,38 @@ class OpencodeManager extends EventEmitter {
     }
   }
   
-  /**
-   * Start OpenCode web
-   */
-  async startWeb() {
-    if (this.webProcess) {
-      this.addLog('web', 'info', 'Web already running');
-      return { success: false, error: 'Web already running' };
-    }
-    
-    try {
-      this.addLog('web', 'info', 'Starting OpenCode web...');
-      
-      const logLevel = (this.config?.opencode?.logLevel || 'INFO').toUpperCase();
-      const args = ['web', '--port', '0', '--print-logs', '--log-level', logLevel];
-      
-      this.webProcess = spawn('opencode', args, {
-        detached: false,
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+   /**
+    * Start OpenCode web
+    */
+   async startWeb() {
+     if (this.webProcess) {
+       this.addLog('web', 'info', 'Web already running');
+       return { success: false, error: 'Web already running' };
+     }
+     
+     // Check if opencode command exists
+     if (!this.checkOpencodeExists()) {
+       const errorMsg = 'opencode command not found. Please ensure opencode is installed and in PATH.';
+       this.addLog('web', 'error', errorMsg);
+       this.updateStatus({ lastError: errorMsg });
+       return { success: false, error: errorMsg };
+     }
+     
+     try {
+       this.addLog('web', 'info', 'Starting OpenCode web...');
+       
+       const logLevel = (this.config?.opencode?.logLevel || 'INFO').toUpperCase();
+       const args = ['web', '--port', '0', '--print-logs', '--log-level', logLevel];
+       
+       this.webProcess = spawn('opencode', args, {
+         detached: false,
+         stdio: ['ignore', 'pipe', 'pipe'],
+         shell: true,
+         env: {
+           ...process.env,
+           PATH: this.getEnhancedPath()
+         }
+       });
       
       const pid = this.webProcess.pid;
       

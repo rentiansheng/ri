@@ -49,14 +49,12 @@ class TerminalManager extends EventEmitter {
 
     // Inject RI environment variables for OpenCode plugin detection
     envVars.RI_TERMINAL = 'true';
+    envVars.RI_SESSION_ID = sessionId || id;  // Always set, with terminal id as fallback
+    envVars.RI_SESSION_NAME = sessionName || 'Terminal';  // Always set, with fallback name
     
+    // Also set legacy RISESSION variable for backward compatibility
     if (sessionId) {
-      envVars.RISESSION = sessionId;  // Legacy variable
-      envVars.RI_SESSION_ID = sessionId;  // For OpenCode plugin
-    }
-    
-    if (sessionName) {
-      envVars.RI_SESSION_NAME = sessionName;  // For OpenCode plugin
+      envVars.RISESSION = sessionId;
     }
     
     const workingDir = cwd || envVars.HOME;
@@ -141,8 +139,15 @@ class TerminalManager extends EventEmitter {
     const t = this._terms.get(id);
     if (!t) return;
     
-    // Check for notification triggers
     this.parseForNotifications(id, data);
+    this.parseForViewCommand(id, data);
+    
+    this.emit('terminal-output', {
+      terminalId: id,
+      sessionId: t.sessionId,
+      sessionName: t.sessionName,
+      data
+    });
 
     if (!t.sessionId) return;
     
@@ -197,6 +202,52 @@ class TerminalManager extends EventEmitter {
         message
       });
       console.log(`[TerminalManager] Detected notification signal: ${type} - ${message}`);
+    }
+  }
+
+  /**
+   * Parse terminal output for view file triggers
+   * Format (OSC invisible): \x1b]__RI_VIEW:/path/to/file__\x07
+   * Format (visible): __RI_VIEW:/path/to/file__
+   * 
+   * This allows AI CLIs (like OpenCode) and shell scripts to trigger
+   * file viewing in RI by printing this magic string.
+   */
+  parseForViewCommand(id, data) {
+    // Regex for both visible (old) and invisible (OSC) magic strings
+    // 1. OSC (Invisible): \x1b]__RI_VIEW:/path__\x07
+    // 2. Visible: __RI_VIEW:/path__
+    
+    const oscRegex = /\x1b\]__RI_VIEW:(.+?)__\x07/g;
+    const visibleRegex = /__RI_VIEW:(.+?)__/g;
+
+    const t = this._terms.get(id);
+    const filePaths = new Set(); // Deduplicate file paths
+    
+    let match;
+    
+    // Check for OSC sequences (preferred - invisible to user)
+    while ((match = oscRegex.exec(data)) !== null) {
+      filePaths.add(match[1].trim());
+    }
+
+    // Check for visible sequences (fallback/legacy)
+    // Only if no OSC sequences found
+    if (filePaths.size === 0) {
+      while ((match = visibleRegex.exec(data)) !== null) {
+        filePaths.add(match[1].trim());
+      }
+    }
+    
+    // Emit events for each unique file path
+    for (const filePath of filePaths) {
+      this.emit('terminal-view-file', {
+        sessionId: t ? t.sessionId : undefined,
+        sessionName: t ? t.sessionName : undefined,
+        terminalId: id,
+        filePath
+      });
+      console.log(`[TerminalManager] Detected view file signal: ${filePath}`);
     }
   }
 

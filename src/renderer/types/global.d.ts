@@ -155,6 +155,26 @@ export interface Config {
     autoRestart: boolean;
     logLevel: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   };
+  remoteControl?: {
+    enabled: boolean;
+    discord?: {
+      enabled: boolean;
+      botToken: string;
+    };
+    slack?: {
+      enabled: boolean;
+      botToken: string;
+      appToken: string;
+    };
+    allowedUsers?: string[];
+    allowedChannels?: string[];
+  };
+}
+
+export interface ViewFilePayload {
+  sessionId?: string;
+  terminalId: string;
+  filePath: string;
 }
 
 export interface Terminal {
@@ -167,6 +187,7 @@ export interface Terminal {
   getProcessInfo: (payload: { id: string }) => Promise<ProcessInfo | null>;
   onData: (handler: (payload: { id: string; data: string }) => void) => () => void;
   onExit: (handler: (payload: { id: string }) => void) => () => void;
+  onViewFile: (handler: (payload: ViewFilePayload) => void) => () => void;
 }
 
 export interface SessionLog {
@@ -323,7 +344,6 @@ export interface OpencodePluginAPI {
     };
     error?: string;
   }>;
-  // New methods for multi-path detection
   detectAll: () => Promise<{ 
     success: boolean; 
     installations: OpencodeInstallation[];
@@ -353,7 +373,6 @@ export interface OpencodePluginAPI {
     success: boolean; 
     error?: string;
   }>;
-  // Configuration management methods
   checkConfig: () => Promise<{ 
     success: boolean; 
     enabled: boolean;
@@ -377,6 +396,21 @@ export interface OpencodePluginAPI {
   }>;
 }
 
+export interface RemoteControlStatus {
+  discordConnected: boolean;
+  slackConnected: boolean;
+  activeSession: {
+    sessionId: string;
+    platform: string;
+  } | null;
+}
+
+export interface RemoteControlAPI {
+  getStatus: () => Promise<{ success: boolean; status?: RemoteControlStatus; error?: string }>;
+  initialize: () => Promise<{ success: boolean; error?: string }>;
+  cleanup: () => Promise<{ success: boolean; error?: string }>;
+}
+
 declare global {
   interface Window {
     terminal: Terminal;
@@ -387,6 +421,7 @@ declare global {
     flow: FlowAPI;
     file: FileAPI;
     opencodePlugin: OpencodePluginAPI;
+    remoteControl: RemoteControlAPI;
   }
 }
 

@@ -3,9 +3,10 @@ import { useConfigStore } from '../store/configStore';
 import { NotificationTheme, themes } from '../utils/notificationThemes';
 import OpencodeSettings from './Settings/OpencodeSettings';
 import TerminalSettings from './Settings/TerminalSettings';
+import RemoteControlSettings from './Settings/RemoteControlSettings';
 import './SettingsView.css';
 
-type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode';
+type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode' | 'remoteControl';
 
 interface NotificationSettings {
   enabled: boolean;
@@ -653,6 +654,8 @@ const SettingsView: React.FC = () => {
         return renderNotificationSettings();
       case 'opencode':
         return <OpencodeSettings />;
+      case 'remoteControl':
+        return <RemoteControlSettings />;
       case 'terminal':
         return <TerminalSettings />;
       case 'appearance':
@@ -671,6 +674,8 @@ const SettingsView: React.FC = () => {
         return 'Notifications';
       case 'opencode':
         return 'OpenCode';
+      case 'remoteControl':
+        return 'Remote Control';
       case 'terminal':
         return 'Terminal';
       case 'appearance':
@@ -727,6 +732,14 @@ const SettingsView: React.FC = () => {
           >
             <span className="settings-nav-icon">🤖</span>
             <span className="settings-nav-label">OpenCode</span>
+          </button>
+          <button
+            className={`settings-nav-item ${activeSection === 'remoteControl' ? 'active' : ''}`}
+            onClick={() => setActiveSection('remoteControl')}
+            data-testid="settings-tab-remote-control"
+          >
+            <span className="settings-nav-icon">📡</span>
+            <span className="settings-nav-label">Remote Control</span>
           </button>
           <button
             className={`settings-nav-item ${activeSection === 'terminal' ? 'active' : ''}`}
