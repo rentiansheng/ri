@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Flow } from '../types/global.d';
+import { useTerminalStore } from '../store/terminalStore';
+import { nanoid } from 'nanoid';
 import './FlowList.css';
 
 interface FlowTreeNode {
@@ -10,6 +12,14 @@ interface FlowTreeNode {
   path: string;
   children?: FlowTreeNode[];
   flow?: Flow;
+}
+
+interface ContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+  targetNode: FlowTreeNode | null;
+  targetPath: string;
 }
 
 interface FlowListProps {
@@ -27,10 +37,36 @@ const FlowList: React.FC<FlowListProps> = ({
 }) => {
   const [flows, setFlows] = useState<Flow[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['']));
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    targetNode: null,
+    targetPath: '',
+  });
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const { createSession, openFlowTab } = useTerminalStore();
 
   useEffect(() => {
     loadFlows();
   }, []);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(prev => ({ ...prev, visible: false }));
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu.visible]);
 
   const loadFlows = async () => {
     const config = await window.config.get();
@@ -38,9 +74,7 @@ const FlowList: React.FC<FlowListProps> = ({
   };
 
   const buildTree = (flows: Flow[]): FlowTreeNode[] => {
-    const root: FlowTreeNode[] = [];
     const folderMap = new Map<string, FlowTreeNode>();
-
     folderMap.set('', { id: 'root', label: 'Root', type: 'folder', path: '', children: [] });
 
     flows.forEach(flow => {
@@ -48,7 +82,7 @@ const FlowList: React.FC<FlowListProps> = ({
       const parts = flowPath ? flowPath.split('/') : [];
       
       let currentPath = '';
-      parts.forEach((part, index) => {
+      parts.forEach((part) => {
         const parentPath = currentPath;
         currentPath = currentPath ? `${currentPath}/${part}` : part;
         
@@ -109,30 +143,225 @@ const FlowList: React.FC<FlowListProps> = ({
       onFolderSelect?.(node.path);
     } else if (node.flow) {
       onFlowSelect?.(node.flow);
+      openFlowTab(node.flow.id, node.flow.name);
     }
   };
 
+  const handleNodeDoubleClick = async (node: FlowTreeNode) => {
+    if (node.type === 'flow' && node.flow) {
+      await createSession(node.flow.name, {
+        cwd: node.flow.cwd,
+        commands: node.flow.commands,
+      });
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, node: FlowTreeNode | null, path: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      targetNode: node,
+      targetPath: path,
+    });
+  };
+
+  const createNewFolder = async () => {
+    const parentPath = contextMenu.targetNode?.type === 'folder' 
+      ? contextMenu.targetNode.path 
+      : contextMenu.targetPath;
+    
+    const folderName = 'New Folder';
+    const newPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+    
+    const config = await window.config.get();
+    const placeholderFlow: Flow = {
+      id: nanoid(),
+      name: '.folder-placeholder',
+      mode: 'template',
+      commands: [],
+      enabled: false,
+      path: newPath,
+    };
+    
+    const updatedFlows = [...(config.flows || []), placeholderFlow];
+    await window.config.update({ flows: updatedFlows });
+    setFlows(updatedFlows);
+    
+    setExpandedFolders(prev => new Set([...prev, parentPath, newPath]));
+    setEditingId(`folder-${newPath}`);
+    setEditingValue(folderName);
+    setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
+  const createNewFlow = async () => {
+    const parentPath = contextMenu.targetNode?.type === 'folder' 
+      ? contextMenu.targetNode.path 
+      : contextMenu.targetPath;
+    
+    const newFlow: Flow = {
+      id: nanoid(),
+      name: 'New Flow',
+      mode: 'template',
+      commands: [],
+      enabled: false,
+      path: parentPath,
+    };
+    
+    const config = await window.config.get();
+    const updatedFlows = [...(config.flows || []), newFlow];
+    await window.config.update({ flows: updatedFlows });
+    setFlows(updatedFlows);
+    
+    if (parentPath) {
+      setExpandedFolders(prev => new Set([...prev, parentPath]));
+    }
+    
+    setEditingId(newFlow.id);
+    setEditingValue(newFlow.name);
+    setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
+  const startRename = (node: FlowTreeNode) => {
+    setEditingId(node.id);
+    setEditingValue(node.label);
+    setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
+  const handleRenameSubmit = async (node: FlowTreeNode) => {
+    const newName = editingValue.trim();
+    if (!newName || newName === node.label) {
+      setEditingId(null);
+      return;
+    }
+
+    const config = await window.config.get();
+    let updatedFlows = [...(config.flows || [])];
+
+    if (node.type === 'folder') {
+      const oldPath = node.path;
+      const pathParts = oldPath.split('/');
+      pathParts[pathParts.length - 1] = newName;
+      const newPath = pathParts.join('/');
+
+      updatedFlows = updatedFlows.map(f => {
+        if (f.path === oldPath) {
+          return { ...f, path: newPath };
+        }
+        if (f.path?.startsWith(oldPath + '/')) {
+          return { ...f, path: f.path.replace(oldPath, newPath) };
+        }
+        return f;
+      });
+
+      setExpandedFolders(prev => {
+        const next = new Set(prev);
+        if (next.has(oldPath)) {
+          next.delete(oldPath);
+          next.add(newPath);
+        }
+        return next;
+      });
+    } else {
+      updatedFlows = updatedFlows.map(f => 
+        f.id === node.id ? { ...f, name: newName } : f
+      );
+    }
+
+    await window.config.update({ flows: updatedFlows });
+    setFlows(updatedFlows);
+    setEditingId(null);
+  };
+
+  const canDeleteNode = (node: FlowTreeNode): boolean => {
+    if (node.type === 'flow') return true;
+    
+    const hasRealChildren = node.children?.some(child => {
+      if (child.type === 'flow' && child.flow?.name === '.folder-placeholder') {
+        return false;
+      }
+      return true;
+    });
+    
+    return !hasRealChildren;
+  };
+
+  const handleDelete = async (node: FlowTreeNode) => {
+    if (node.type === 'folder' && !canDeleteNode(node)) {
+      alert('Cannot delete folder with contents. Please delete or move items first.');
+      setContextMenu(prev => ({ ...prev, visible: false }));
+      return;
+    }
+
+    if (!confirm(`Delete "${node.label}"?`)) return;
+
+    const config = await window.config.get();
+    let updatedFlows = [...(config.flows || [])];
+
+    if (node.type === 'folder') {
+      updatedFlows = updatedFlows.filter(f => 
+        f.path !== node.path && !f.path?.startsWith(node.path + '/')
+      );
+    } else {
+      updatedFlows = updatedFlows.filter(f => f.id !== node.id);
+    }
+
+    await window.config.update({ flows: updatedFlows });
+    setFlows(updatedFlows);
+    setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
   const renderNode = (node: FlowTreeNode, depth: number = 0): React.ReactNode => {
+    if (node.type === 'flow' && node.flow?.name === '.folder-placeholder') {
+      return null;
+    }
+
     const isExpanded = expandedFolders.has(node.path);
     const isSelected = node.type === 'flow' && node.id === selectedFlowId;
     const hasChildren = node.children && node.children.length > 0;
+    const isEditing = editingId === node.id;
 
     return (
       <div key={node.id} className="flow-tree-node">
         <div
           className={`flow-tree-item ${isSelected ? 'selected' : ''} ${node.type}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
-          onClick={() => handleNodeClick(node)}
+          onClick={() => !isEditing && handleNodeClick(node)}
+          onDoubleClick={() => !isEditing && handleNodeDoubleClick(node)}
+          onContextMenu={(e) => handleContextMenu(e, node, node.path)}
         >
           {node.type === 'folder' && (
-            <span className={`flow-tree-arrow ${isExpanded ? 'expanded' : ''}`}>
+            <span 
+              className={`flow-tree-arrow ${isExpanded ? 'expanded' : ''}`}
+              onClick={(e) => { e.stopPropagation(); toggleFolder(node.path); }}
+            >
               ▶
             </span>
           )}
           {node.type === 'flow' && <span className="flow-tree-spacer" />}
           <span className="flow-tree-icon">{node.icon}</span>
-          <span className="flow-tree-label">{node.label}</span>
-          {node.type === 'flow' && node.flow && (
+          
+          {isEditing ? (
+            <input
+              ref={editInputRef}
+              type="text"
+              className="flow-tree-edit-input"
+              value={editingValue}
+              onChange={(e) => setEditingValue(e.target.value)}
+              onBlur={() => handleRenameSubmit(node)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameSubmit(node);
+                if (e.key === 'Escape') setEditingId(null);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className="flow-tree-label">{node.label}</span>
+          )}
+          
+          {node.type === 'flow' && node.flow && !isEditing && (
             <span className={`flow-tree-badge ${node.flow.mode}`}>
               {node.flow.mode === 'cron' ? 'C' : 'T'}
             </span>
@@ -150,27 +379,69 @@ const FlowList: React.FC<FlowListProps> = ({
   const tree = buildTree(flows);
 
   return (
-    <div className="flow-list">
+    <div 
+      className="flow-list"
+      data-testid="flow-list"
+      onContextMenu={(e) => handleContextMenu(e, null, '')}
+    >
       <div className="flow-list-header">
         <h3>WORKFLOWS</h3>
         <button 
           className="btn-new-flow"
-          onClick={() => onFolderSelect?.('')}
-          title="View All Flows"
+          data-testid="create-flow-btn"
+          onClick={() => {
+            setContextMenu({ visible: false, x: 0, y: 0, targetNode: null, targetPath: '' });
+            createNewFlow();
+          }}
+          title="New Flow"
         >
-          ⚙
+          +
         </button>
       </div>
-      <div className="flow-list-content">
+      <div className="flow-list-content" data-testid="flow-list-content">
         {tree.length === 0 ? (
-          <div className="flow-list-empty">
+          <div className="flow-list-empty" data-testid="flow-list-empty">
             <p>No workflows yet</p>
-            <p className="flow-list-hint">Create one in the Flow view</p>
+            <p className="flow-list-hint">Right-click to create</p>
           </div>
         ) : (
           tree.map(node => renderNode(node, 0))
         )}
       </div>
+
+      {contextMenu.visible && (
+        <div 
+          className="flow-context-menu"
+          data-testid="flow-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <div className="flow-context-menu-item" data-testid="ctx-new-folder" onClick={createNewFolder}>
+            📁 New Folder
+          </div>
+          <div className="flow-context-menu-item" data-testid="ctx-new-flow" onClick={createNewFlow}>
+            ⚡ New Flow
+          </div>
+          {contextMenu.targetNode && (
+            <>
+              <div className="flow-context-menu-divider" />
+              <div 
+                className="flow-context-menu-item"
+                data-testid="ctx-rename"
+                onClick={() => startRename(contextMenu.targetNode!)}
+              >
+                ✏️ Rename
+              </div>
+              <div 
+                className="flow-context-menu-item danger"
+                data-testid="ctx-delete"
+                onClick={() => handleDelete(contextMenu.targetNode!)}
+              >
+                🗑️ Delete
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

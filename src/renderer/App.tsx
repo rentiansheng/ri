@@ -12,6 +12,7 @@ import Terminal from './components/Terminal';
 import SplitTerminalView from './components/SplitTerminalView';
 import { TabBar } from './components/TabBar';
 import FlowView from './components/FlowView';
+import FlowEditor from './components/FlowEditor';
 import SettingsView from './components/SettingsView';
 import FileViewer from './components/FileViewer';
 import { NotificationToastContainer } from './components/NotificationToast';
@@ -302,6 +303,12 @@ function App() {
           {activeTab?.type === 'file' && activeTab.filePath && (
             <div className="file-viewer-area">
               <FileViewer filePath={activeTab.filePath} />
+            </div>
+          )}
+          
+          {activeTab?.type === 'flow' && activeTab.flowId && (
+            <div className="flow-editor-area">
+              <FlowEditor flowId={activeTab.flowId} />
             </div>
           )}
         </div>

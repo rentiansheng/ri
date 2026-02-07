@@ -178,6 +178,31 @@
 .status-dot.success { background: #4ec9b0; }
 .status-dot.error { background: #f44747; }
 
+.flow-commands-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0;
+}
+
+.flow-commands-preview code {
+  display: block;
+  background: #1e1e1e;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: #ce9178;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flow-commands-more {
+  font-size: 0.7rem;
+  color: #666;
+  font-style: italic;
+}
+
 .add-flow-btn {
   background: #007acc;
   color: white;

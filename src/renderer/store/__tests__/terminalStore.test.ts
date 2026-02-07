@@ -1051,6 +1051,68 @@ describe('TerminalStore', () => {
     });
   });
 
+  describe('openFlowTab', () => {
+    it('should create a new flow tab', () => {
+      const { openFlowTab } = useTerminalStore.getState();
+
+      openFlowTab('flow-1', 'Build Project');
+
+      const state = useTerminalStore.getState();
+      expect(state.tabs).toHaveLength(1);
+      expect(state.tabs[0].type).toBe('flow');
+      expect(state.tabs[0].flowId).toBe('flow-1');
+      expect(state.tabs[0].title).toBe('⚡ Build Project');
+    });
+
+    it('should set new flow tab as active', () => {
+      const { openFlowTab } = useTerminalStore.getState();
+
+      openFlowTab('flow-1', 'Build Project');
+
+      const state = useTerminalStore.getState();
+      expect(state.activeTabId).toBe(state.tabs[0].id);
+    });
+
+    it('should not create duplicate flow tab', () => {
+      const { openFlowTab } = useTerminalStore.getState();
+
+      openFlowTab('flow-1', 'Build Project');
+      openFlowTab('flow-1', 'Build Project'); // Try to open again
+
+      const state = useTerminalStore.getState();
+      expect(state.tabs.filter(t => t.flowId === 'flow-1')).toHaveLength(1);
+    });
+
+    it('should activate existing flow tab if already open', () => {
+      const { openFlowTab, openTab } = useTerminalStore.getState();
+
+      openFlowTab('flow-1', 'Build Project');
+      const flowTabId = useTerminalStore.getState().tabs[0].id;
+
+      // Open a different tab
+      openTab('settings');
+      expect(useTerminalStore.getState().activeTabId).not.toBe(flowTabId);
+
+      // Try to open the same flow again
+      openFlowTab('flow-1', 'Build Project');
+
+      const state = useTerminalStore.getState();
+      expect(state.activeTabId).toBe(flowTabId);
+    });
+
+    it('should create multiple flow tabs for different flows', () => {
+      const { openFlowTab } = useTerminalStore.getState();
+
+      openFlowTab('flow-1', 'Build');
+      openFlowTab('flow-2', 'Deploy');
+
+      const state = useTerminalStore.getState();
+      expect(state.tabs).toHaveLength(2);
+      expect(state.tabs[0].flowId).toBe('flow-1');
+      expect(state.tabs[1].flowId).toBe('flow-2');
+    });
+  });
+
   describe('Multiple Sessions', () => {
     it('should manage multiple sessions independently', async () => {
       const { createSession } = useTerminalStore.getState();

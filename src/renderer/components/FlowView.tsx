@@ -90,22 +90,10 @@ const FlowView: React.FC<FlowViewProps> = ({ initialPath }) => {
 
   const runFlow = async (flow: Flow) => {
     if (flow.mode === 'template') {
-      // For template, create a real session and execute commands
-      const { id: terminalId } = await window.terminal.create({ 
-        sessionName: flow.name,
-        cwd: flow.cwd
+      await createSession(flow.name, {
+        cwd: flow.cwd,
+        commands: flow.commands,
       });
-      
-      // We still need the store to track it
-      await loadFlows(); // Refresh status if needed
-      
-      // Wait for terminal to be ready
-      setTimeout(() => {
-        const fullCmd = flow.commands.join(' && ');
-        window.terminal.write({ id: terminalId, data: fullCmd + '\n' });
-      }, 1000);
-      
-      // Switch view to sessions if possible (optional)
     } else {
       await window.flow.runNow(flow);
     }
@@ -205,7 +193,16 @@ const FlowView: React.FC<FlowViewProps> = ({ initialPath }) => {
                   <span>{flow.lastRunStatus ? `Last: ${flow.lastRunStatus}` : 'Never run'}</span>
                 </div>
                 {flow.mode === 'cron' && <div>Cron: <code>{flow.cron}</code></div>}
-                <div>Commands: {flow.commands.length}</div>
+                {flow.commands.length > 0 && (
+                  <div className="flow-commands-preview">
+                    {flow.commands.filter(c => c.trim()).slice(0, 3).map((cmd, i) => (
+                      <code key={i}>{cmd}</code>
+                    ))}
+                    {flow.commands.filter(c => c.trim()).length > 3 && (
+                      <span className="flow-commands-more">+{flow.commands.filter(c => c.trim()).length - 3} more</span>
+                    )}
+                  </div>
+                )}
                 {flow.lastRunTime && <div>Last Run: {new Date(flow.lastRunTime).toLocaleString()}</div>}
               </div>
             </div>

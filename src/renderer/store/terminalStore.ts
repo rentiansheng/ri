@@ -22,7 +22,7 @@ export interface Session {
   isNameSetByUser: boolean;  // 名称是否由用户首次输入设置
 }
 
-export type TabType = 'terminal' | 'settings' | 'file';
+export type TabType = 'terminal' | 'settings' | 'file' | 'flow';
 
 export interface Tab {
   id: string;
@@ -30,6 +30,7 @@ export interface Tab {
   sessionId?: string;
   terminalId?: string;
   filePath?: string;
+  flowId?: string;
   title: string;
 }
 
@@ -61,7 +62,7 @@ interface TerminalStore {
   visibleSessionIds: string[];  // Tab Bar 中显示的 Session IDs（按打开顺序）
   activeSessionId: string | null;  // 当前激活的 Session ID
   
-  createSession: (name?: string) => Promise<void>;
+  createSession: (name?: string, options?: { cwd?: string; commands?: string[] }) => Promise<void>;
   deleteSession: (id: string) => void;
   showSession: (id: string) => void;
   hideSession: (id: string) => void;
@@ -82,6 +83,7 @@ interface TerminalStore {
   // New unified tab actions
   openTab: (type: TabType, sessionId?: string, terminalId?: string, title?: string) => void;
   openFileTab: (filePath: string) => void;
+  openFlowTab: (flowId: string, flowName: string) => void;
   closeTabById: (tabId: string) => void;
   setActiveTab: (tabId: string | null) => void;
   reorderTabsNew: (fromIndex: number, toIndex: number) => void;
@@ -105,13 +107,14 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   visibleSessionIds: [],
   activeSessionId: null,
   
-  createSession: async (name?: string) => {
+  createSession: async (name?: string, options?: { cwd?: string; commands?: string[] }) => {
     try {
       const sessionName = name || `Session ${get().sessions.length + 1}`;
       const sessionId = nanoid();
       const { id: terminalId } = await window.terminal.create({ 
         sessionName,
-        sessionId  // Pass sessionId to backend for logging
+        sessionId,
+        cwd: options?.cwd,
       });
       const now = Date.now();
       
@@ -141,6 +144,16 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       
       // Show terminal
       window.terminal.show({ id: terminalId });
+      
+      // Execute initial commands if provided
+      if (options?.commands && options.commands.length > 0) {
+        setTimeout(() => {
+          const cmds = options.commands!.filter(c => c.trim());
+          if (cmds.length > 0) {
+            window.terminal.write({ id: terminalId, data: cmds.join(' && ') + '\n' });
+          }
+        }, 500);
+      }
     } catch (error) {
       console.error('Failed to create session:', error);
     }
@@ -518,6 +531,27 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       type: 'file',
       filePath,
       title: `📄 ${fileName}`,
+    };
+    
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+  },
+  
+  openFlowTab: (flowId: string, flowName: string) => {
+    const existingTab = get().tabs.find(t => t.type === 'flow' && t.flowId === flowId);
+    
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+    
+    const newTab: Tab = {
+      id: nanoid(),
+      type: 'flow',
+      flowId,
+      title: `⚡ ${flowName}`,
     };
     
     set((state) => ({

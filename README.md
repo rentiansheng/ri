@@ -2,17 +2,20 @@
 
 > [English](#) | [中文文档](./README_CN.md)
 
-A modern terminal session manager built with Electron, React, and TypeScript. Organize your development workflows with multiple terminal sessions, command history tracking, notifications, and an intuitive unified interface.
+A modern terminal session manager built with Electron, React, and TypeScript. Organize your development workflows with multiple terminal sessions, command history tracking, workflow automation, and an intuitive unified interface.
+
+![RI Main Interface](./docs/images/main-interface.png)
 
 ## Features
 
 ### Core Features
 - **Multiple Terminal Sessions**: Create and manage multiple terminal sessions with independent processes
-- **Unified Tab System**: All content (terminals, history, settings) displayed in a single tab bar with type prefixes
+- **Unified Tab System**: All content (terminals, history, flows, settings) displayed in a single tab bar
   - Terminal tabs: Session name (e.g., "Session 1")
+  - Flow tabs: `⚡ Flow Name` prefix
   - History tabs: `[H]: Session name` prefix
   - Settings tabs: `[S]: Settings` prefix
-- **Robust Process Management**: Automatically cleans up all child processes (process groups) when a session is closed or the app exits. No more zombie processes.
+- **Robust Process Management**: Automatically cleans up all child processes when a session is closed
 - **Session Persistence**: Sessions remain alive even when tabs are closed
 - **Drag-and-Drop Tabs**: Reorder tabs by dragging them to your preferred position
 
@@ -21,18 +24,44 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
   - ⚡ Sessions - Manage terminal sessions
   - 📜 History - View command history per session
   - 🔔 Notify - Monitor terminal notifications
-  - ⚙️ Flow - Workflow automation
+  - 🔧 Flow - Workflow automation
   - ⚙ Settings - Application configuration
-- **Collapsible Navigation Panel**: Context-aware left panel for session/history lists
+- **Collapsible Navigation Panel**: Context-aware left panel for session/history/flow lists
 - **Master-Detail Layout**: List navigation on left, detailed content on right
+
+![Sidebar Navigation](./docs/images/sidebar-navigation.png)
 
 ### Terminal Features
 - **Full xterm.js terminal emulation** with auto-fit sizing
+- **Split Terminal Support**: Horizontal and vertical splits within a session
 - **Command history preservation** with session log tracking
 - **Color output support** and proper ANSI sequence handling
 - **Auto-naming**: First command automatically names the session
 - **AI Tool Detection**: Monitor AI assistant usage (OpenCode, Copilot, Aider, Cursor, Cline)
-- **Safe Deletion**: Context-menu style confirmation for deleting sessions to prevent accidental data loss.
+- **Safe Deletion**: Context-menu style confirmation for deleting sessions
+
+![Terminal Split View](./docs/images/terminal-split.png)
+
+### Workflow Automation (Flow)
+
+Automate your development workflows with the Flow feature:
+
+- **Tree Structure**: Organize workflows in folders and subfolders
+- **Visual Editor**: Edit workflow commands with line numbers
+- **One-Click Run**: Execute all workflow commands in a new session
+- **Right-Click Menu**: Quick actions for create, rename, and delete
+- **Collapsible Folders**: Keep your workflow list organized
+
+![Flow List](./docs/images/flow-list.png)
+
+**Flow Features:**
+- 📁 **Folder Organization**: Group related workflows together
+- ⚡ **Quick Execution**: Double-click to run a workflow
+- ✏️ **Inline Rename**: Edit names directly in the tree
+- 🔄 **Command Editor**: Full-featured command sequence editor
+- 💾 **Auto-Save**: Changes persist automatically
+
+![Flow Editor](./docs/images/flow-editor.png)
 
 ### History & Logging
 - **Session Logs**: Automatic command history recording per session
@@ -45,19 +74,32 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
 - **Activity Monitoring**: Track session activity and command completion
 - **Unread Counts**: Badge indicators for new notifications
 - **Grouped Display**: Notifications organized by session
-- **Magic Strings**: Support for terminal-triggered notifications via special escape sequences.
+- **Magic Strings**: Support for terminal-triggered notifications
 
 ### OpenCode Integration
-- **Auto-Start**: Automatically launch OpenCode server and web interface on app startup
+- **Auto-Start**: Automatically launch OpenCode server and web interface
 - **Process Management**: Independent control of server and web processes
 - **Status Monitoring**: Real-time PIDs, port numbers, and process state
 - **Log Streaming**: Live logs for debugging and monitoring
-- **Configurable**: Startup delay, auto-restart, log levels
-- **RI Notification Plugin**: One-click installation of OpenCode plugin for seamless RI integration
-  - Sends notifications to RI when OpenCode completes tasks
-  - Auto-detects RI terminal environment
-  - Zero configuration required - uses sensible defaults
-  - Easy management: Install, reinstall, open directory, view docs
+- **RI Notification Plugin**: One-click installation for seamless integration
+
+## Screenshots
+
+### Main Interface
+![Main Interface](./docs/images/main-interface.png)
+*Terminal sessions with split view support*
+
+### Workflow Management
+![Flow Management](./docs/images/flow-management.png)
+*Tree-based workflow organization with folders*
+
+### Flow Editor
+![Flow Editor Detail](./docs/images/flow-editor-detail.png)
+*Visual command editor with line numbers and reordering*
+
+### Settings
+![Settings View](./docs/images/settings-view.png)
+*Comprehensive settings for terminal, notifications, and integrations*
 
 ## Tech Stack
 
@@ -107,11 +149,15 @@ Alternatively, use the provided build script:
 
 ## Scripts
 
-- `npm run dev` - Start development environment with hot reload
-- `npm run build` - Build the application for production
-- `npm start` - Start the Electron app (production mode)
-- `npm run lint` - Run ESLint to check code quality
-- `./cleanup-processes.sh` - Clean up any residual terminal processes
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development environment with hot reload |
+| `npm run build` | Build the application for production |
+| `npm start` | Start the Electron app (production mode) |
+| `npm run lint` | Run ESLint to check code quality |
+| `npm test` | Run unit tests |
+| `npm run test:e2e` | Run end-to-end tests |
+| `./cleanup-processes.sh` | Clean up any residual terminal processes |
 
 ## Project Structure
 
@@ -119,264 +165,202 @@ Alternatively, use the provided build script:
 .
 ├── electron/                    # Electron main process files
 │   ├── main.cjs                # Main process entry point
-│   ├── terminalManager.cjs     # Terminal process management (with PGID cleanup)
+│   ├── terminalManager.cjs     # Terminal process management
 │   ├── sessionLogger.cjs       # Command history logging
 │   ├── notificationManager.cjs # Desktop notifications
-│   └── opencodePlugin.cjs      # OpenCode plugin installation manager
+│   └── opencodePlugin.cjs      # OpenCode plugin manager
 ├── src/
 │   └── renderer/               # React renderer process
 │       ├── components/         # React components
 │       │   ├── Sidebar.tsx           # Icon sidebar navigation
-│       │   ├── TabBar.tsx            # Unified tab bar (terminals/history/settings)
-│       │   ├── Terminal.tsx          # xterm.js terminal component
-│       │   ├── ConfirmContextMenu.tsx # Context-aware deletion confirmation
+│       │   ├── TabBar.tsx            # Unified tab bar
+│       │   ├── Terminal.tsx          # xterm.js terminal
+│       │   ├── FlowList.tsx          # Workflow tree navigation
+│       │   ├── FlowEditor.tsx        # Workflow command editor
+│       │   ├── FlowView.tsx          # Flow main view
 │       │   ├── SessionList.tsx       # Session navigation list
 │       │   ├── HistoryList.tsx       # History session list
-│       │   ├── Settings/
-│       │   │   ├── OpencodeSettings.tsx # OpenCode configuration and plugin management
-│       │   │   └── OpencodeSettings.css
-│       │   └── SettingsView.tsx      # Main settings interface
-...
+│       │   └── Settings/             # Settings components
+│       ├── store/              # Zustand state management
+│       └── styles/             # CSS stylesheets
 ├── docs/                        # Documentation
+│   ├── images/                 # Screenshots and diagrams
 │   ├── NOTIFICATIONS.md        # Notification system details
 │   ├── NOTIFICATION_API.md     # Terminal notification protocol
-│   └── OPENCODE_PLUGIN.md      # OpenCode plugin integration guide
-├── opencode-ri-notification/   # OpenCode RI notification plugin source
-│   ├── index.ts                # Plugin entry point
-│   ├── lib/                    # Plugin implementation
-│   ├── README.md               # Plugin documentation
-│   └── package.json            # Plugin manifest
-├── PROCESS_CLEANUP.md           # Details on zombie process prevention
-├── README.md                   # This file
-└── README_CN.md                # Chinese version
+│   └── OPENCODE_PLUGIN.md      # OpenCode plugin guide
+├── test/                        # Test files
+│   ├── e2e/                    # End-to-end tests
+│   └── unit/                   # Unit tests
+└── README.md                   # This file
 ```
 
-## Usage
+## Usage Guide
 
 ### Creating a Terminal Session
 
-1. Click the `+` button in the Sessions list (left navigation panel)
+1. Click the `+` button in the Sessions list
 2. A new terminal session will be created with a default name
 3. A terminal tab will automatically open in the tab bar
 4. The first command you type will rename the session automatically
 
-### Managing Tabs
+![Create Session](./docs/images/create-session.png)
 
-The unified tab bar shows all open content with type prefixes:
+### Managing Terminal Sessions
 
-- **Terminal tabs**: Display the session name (e.g., "Session 1", "bash", "npm dev")
-- **History tabs**: Show `[H]: Session Name` to indicate history view
-- **Settings tab**: Shows `[S]: Settings` for app configuration
+| Action | How To |
+|--------|--------|
+| **Create** | Click `+` button in Sessions list |
+| **Switch** | Click on session in list or tab |
+| **Rename** | Double-click session name |
+| **Delete** | Click trash icon (🗑) with confirmation |
+| **Split** | Use split button in terminal toolbar |
 
-**Tab Actions**:
-- **Switch tabs**: Click on any tab in the tab bar
-- **Close tab**: Hover over a tab and click the `×` button
-  - Closing a terminal tab hides it but keeps the session alive
-  - Closing a history tab removes it from the bar
-  - Settings tab can be reopened by clicking the Settings icon
-- **Reorder tabs**: Drag and drop tabs to rearrange their order
-- **Reopen closed sessions**: Click on the session in the Sessions list
+**Session Indicators:**
+- ● (solid circle) = Session tab is open
+- ○ (hollow circle) = Session exists but tab is closed
+
+### Using Workflows (Flow)
+
+The Flow feature lets you define reusable command sequences:
+
+#### Creating a Workflow
+
+1. Click the ⚡ Flow icon in the sidebar
+2. Click the `+` button or right-click → "New Flow"
+3. Enter a name for your workflow
+4. Click on the flow to open the editor
+5. Add commands one per line
+6. Click "Save" or press `Ctrl+S` / `Cmd+S`
+
+![Create Flow](./docs/images/create-flow.png)
+
+#### Organizing Workflows
+
+- **Create Folder**: Right-click → "New Folder"
+- **Move Items**: Drag and drop to reorganize
+- **Rename**: Right-click → "Rename" or click and edit
+- **Delete**: Right-click → "Delete"
+
+#### Running a Workflow
+
+- **Double-click** on a flow to run it immediately
+- **Click "▶ Run"** button in the Flow Editor
+- Commands execute in sequence in a new terminal session
+
+![Run Flow](./docs/images/run-flow.png)
+
+#### Flow Editor Features
+
+| Feature | Description |
+|---------|-------------|
+| **Line Numbers** | Visual reference for command order |
+| **Add Command** | Press Enter or click `+` |
+| **Remove Command** | Press Backspace on empty line or click `×` |
+| **Reorder** | Use ↑↓ buttons or drag and drop |
+| **Working Directory** | Set `cwd` for command execution |
+| **Keyboard Shortcuts** | `Ctrl+S`/`Cmd+S` to save |
 
 ### Working with History
 
-1. **View History**: Click the 📜 History icon in the sidebar
-2. **Browse Sessions**: The left panel shows all sessions with command history
-   - Displays record count, file size, and last activity time
-3. **Open History Tab**: Click on a session to open its history in a new `[H]:` tab
-4. **View Commands**: Browse all commands executed in that session with timestamps
-5. **Clear History**: Hover over a session and click the `×` button to clear its logs
-
-### Session Management
-
-**In the Sessions List** (when ⚡ Sessions view is active):
-- **Rename**: Double-click on a session name, edit, and press Enter
-- **Delete**: Click the trash icon (🗑). A confirmation menu will appear to prevent accidental deletion.
-- **Open/Close**: Click a session to toggle its terminal tab in the tab bar
-- **Session indicators**:
-  - ● (solid circle) = Session tab is open
-  - ○ (hollow circle) = Session exists but tab is closed
+1. Click the 📜 History icon in the sidebar
+2. Browse sessions with command history
+3. Click a session to view its full history
+4. Statistics show record count and file size
 
 ### Notifications
 
-1. **View Notifications**: Click the 🔔 Notify icon in the sidebar
-2. **Browse by Session**: Left panel shows notification groups (max 3 preview per session)
-3. **Unread Badge**: Red badge shows total unread notification count
-4. **View All**: Click a session to see all its notifications in the main area
-5. **Mark as Read**: Notifications are marked as read when viewed
-
-### Sidebar Navigation
-
-- **Icon Sidebar** (48px, always visible):
-  - ⚡ Sessions - Create and manage terminal sessions
-  - 📜 History - Browse command history
-  - 🔔 Notify - View notifications
-  - ⚙️ Flow - Workflow automation (future feature)
-  - ⚙ Settings - App configuration
-
-- **Navigation Panel** (250px, collapsible):
-  - Shows context-relevant lists (sessions, history, notifications)
-  - **Collapse/Expand**: Click the toggle button (`◀`/`▶`) to save screen space
-  - Only visible for Sessions, History, and Notify views
+1. Click the 🔔 Notify icon in the sidebar
+2. View notifications grouped by session
+3. Red badge shows unread count
+4. Click to mark as read
 
 ### Settings
 
-1. Click the ⚙ Settings icon in the sidebar
-2. A `[S]: Settings` tab opens in the tab bar
-3. Configure:
-   - **Notifications**: Desktop alerts, themes, toast duration, external integrations
-     - System notifications (macOS Notification Center)
-     - In-app toast notifications with customizable themes
-     - External channels: Slack, Discord, Telegram, DingTalk (钉钉), WeCom (企业微信)
-   - **OpenCode**: Auto-start and plugin management
-     - Server and web interface auto-start options
-     - Process control and monitoring
-     - Live log streaming
-     - **RI Notification Plugin**: One-click install/reinstall OpenCode plugin
-       - Automatically sends OpenCode task completion notifications to RI
-       - Plugin auto-detects RI environment (no config needed)
-       - Manage plugin: Install, Reinstall, Open Directory, View Documentation
-   - Terminal preferences (coming soon)
-   - UI appearance options (coming soon)
-   - Advanced settings (coming soon)
+Access settings via the ⚙ icon:
 
-### OpenCode Integration
+| Tab | Options |
+|-----|---------|
+| **Notification** | Desktop alerts, themes, external integrations |
+| **OpenCode** | Auto-start, plugin management |
+| **Terminal** | Font, colors, cursor, scrollback |
+| **Appearance** | Theme, layout options |
+| **Advanced** | Dev tools, logging, performance |
 
-RI includes built-in integration with OpenCode, allowing you to automatically start OpenCode services when the application launches.
+### Keyboard Shortcuts
 
-**Configuration Features:**
-- Auto-start OpenCode Server and/or Web interface on app launch
-- Independent control of server and web processes
-- Real-time status monitoring with PIDs and port numbers
-- Live log streaming for debugging
-- Configurable startup delay to ensure smooth initialization
-- Auto-restart on crash (optional)
-- Choose log level (DEBUG, INFO, WARN, ERROR)
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+T` / `Cmd+T` | New terminal session |
+| `Ctrl+W` / `Cmd+W` | Close current tab |
+| `Ctrl+Tab` | Switch to next tab |
+| `Ctrl+Shift+Tab` | Switch to previous tab |
+| `Ctrl+S` / `Cmd+S` | Save (in editors) |
+| `Ctrl+,` / `Cmd+,` | Open settings |
 
-**RI Notification Plugin:**
-
-RI provides a dedicated OpenCode plugin that sends notifications when OpenCode completes tasks, making it easy to track your AI assistant's work.
-
-**Features:**
-- **One-Click Installation**: Install the plugin directly from RI Settings
-- **Auto-Detection**: Plugin automatically detects RI terminal environment
-- **Zero Configuration**: Works out of the box with sensible defaults
-- **Non-Intrusive**: Only active in RI terminals, doesn't affect OpenCode elsewhere
-- **Easy Management**: Reinstall, open directory, or view documentation from Settings
-
-**Setup:**
-1. Go to Settings → OpenCode tab
-2. Scroll to "RI Notification Plugin" section
-3. Click "Install Plugin" button
-4. Plugin is now active in all RI terminal sessions
-
-**How it Works:**
-- When you run `opencode` in an RI terminal, the plugin activates automatically
-- OpenCode sends notifications to RI when tasks complete (builds, tests, errors, etc.)
-- Notifications appear in RI's notification panel and as system alerts
-- In non-RI terminals, the plugin stays inactive
-
-**Notification Types:**
-- ✅ Task completion
-- 🔨 Build and test results
-- ❌ Error alerts
-- 🔒 Permission requests
-- ⏱️ Long-running command notifications
-
-### AI Tool Monitoring
-
-The app automatically detects when you're using AI coding assistants:
-- **Supported tools**: OpenCode, GitHub Copilot, Aider, Cursor, Cline
-- **Status indicators**: Emoji icons in tabs show AI tool activity
-  - 🤔 Thinking
-  - ⏸ Waiting for input
-  - ⚡ Executing command
-  - ✅ Completed
-
-## Architecture Highlights
+## Architecture
 
 ### Unified Tab System
 
-The app uses a **unified tab system** where all content types (terminals, history views, settings) are managed through a single tab bar:
+All content types share a single tab bar:
 
 ```typescript
-// Tab types
-type TabType = 'terminal' | 'history' | 'settings';
+type TabType = 'terminal' | 'flow' | 'history' | 'settings' | 'file';
 
 interface Tab {
-  id: string;           // Unique tab ID
-  type: TabType;        // Tab content type
-  sessionId?: string;   // For terminal and history tabs
-  title: string;        // Display title with prefix
+  id: string;
+  type: TabType;
+  sessionId?: string;
+  flowId?: string;
+  filePath?: string;
+  title: string;
 }
 ```
 
-### Robust Process Cleanup
+### State Management
 
-RI ensures that no terminal processes are left behind.
-- **Unix**: Uses process groups (`setsid`) and `pkill -P` to kill the entire tree.
-- **Windows**: Uses `taskkill /T /F` to ensure recursive termination.
-- **Main Process**: Listens for `before-quit` and `will-quit` to ensure all sessions are destroyed.
+| Store | Responsibility |
+|-------|----------------|
+| `terminalStore` | Sessions, tabs, visibility |
+| `notifyStore` | Notifications, read/unread status |
+| `configStore` | User preferences, settings |
+| `xtermStore` | xterm.js instances |
 
-### State Management with Zustand
+### Process Management
 
-Three main stores handle application state:
-
-1. **terminalStore.ts**: 
-   - Terminal sessions and processes
-   - Unified tab system (tabs, activeTabId)
-   - Session lifecycle management
-
-2. **notifyStore.ts**:
-   - Notification management
-   - Read/unread status
-   - Real-time notification listeners
-
-3. **configStore.ts**:
-   - Application configuration
-   - User preferences
-   - Settings persistence
+- **Unix**: Process groups with `setsid` and `pkill -P`
+- **Windows**: `taskkill /T /F` for recursive termination
+- **Cleanup**: Automatic on app exit via `before-quit` handler
 
 ## Troubleshooting
 
-### Terminal not displaying or input not working
+### Terminal Black Screen
 
-**Issue**: Terminal shows black screen or can't type
-- **Cause**: xterm.js initialization timing issues
-- **Fix**: Terminal uses lazy initialization - only opens when tab becomes visible
-- Check browser console for errors
-- Try closing and reopening the terminal tab
+**Issue**: Terminal shows black screen after switching tabs
+- **Cause**: xterm.js DOM detachment
+- **Fix**: Close and reopen the tab, or switch views
 
 ### Residual Processes
 
-**Issue**: `opencode` or other processes still running after RI closes.
-- **Fix**: Run `./cleanup-processes.sh` to manually purge orphans.
-- Report the issue as the app should handle this automatically via its PGID killing logic.
+**Issue**: Processes still running after RI closes
+- **Fix**: Run `./cleanup-processes.sh`
+- **Prevention**: Always close RI properly (don't force quit)
 
----
+### Flow Not Saving
+
+**Issue**: Workflow changes not persisting
+- **Fix**: Ensure you click "Save" or press `Ctrl+S`
+- **Check**: Verify config file permissions
 
 ## Documentation
 
-### Getting Started
-- [Quick Start Guide](./docs/QUICKSTART.md) - Get up and running in 5 minutes
-- [中文快速开始](./docs/QUICKSTART_CN.md) (coming soon)
-
-### Core Features
-- [Notification System](./docs/NOTIFICATIONS.md) - How notifications work
-- [Notification API (Magic Strings)](./docs/NOTIFICATION_API.md) - Send custom notifications from terminal
-- [Process Cleanup](./PROCESS_CLEANUP.md) - Zombie process prevention
-
-### Integrations
-- [OpenCode Plugin Guide](./docs/OPENCODE_PLUGIN.md) - Complete OpenCode integration guide
-- [OpenCode Plugin (中文)](./docs/OPENCODE_PLUGIN_CN.md) (coming soon)
-
-### Chinese Documentation
-- [中文版 README](./README_CN.md) (coming soon)
-- [通知系统 (中文)](./docs/NOTIFICATIONS_CN.md) (coming soon)
-- [通知 API (中文)](./docs/NOTIFICATION_API_CN.md) (coming soon)
+- [Quick Start Guide](./docs/QUICKSTART.md)
+- [Notification System](./docs/NOTIFICATIONS.md)
+- [Notification API](./docs/NOTIFICATION_API.md)
+- [OpenCode Plugin Guide](./docs/OPENCODE_PLUGIN.md)
+- [Process Cleanup](./PROCESS_CLEANUP.md)
 
 ---
 
 ## License
 
 This project is private and not currently licensed for public use.
-
