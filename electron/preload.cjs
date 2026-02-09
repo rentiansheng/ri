@@ -148,5 +148,24 @@ contextBridge.exposeInMainWorld('remoteControl', {
   getStatus: () => ipcRenderer.invoke('remote-control:get-status'),
   initialize: () => ipcRenderer.invoke('remote-control:initialize'),
   cleanup: () => ipcRenderer.invoke('remote-control:cleanup'),
+  test: (testType) => ipcRenderer.invoke('remote-control:test', testType),
+  simulate: (command) => ipcRenderer.invoke('remote-control:simulate', command),
+  testConnection: (platform) => ipcRenderer.invoke('remote-control:test-connection', platform),
+  sendTestNotification: (platform, channelId) => ipcRenderer.invoke('remote-control:send-test-notification', platform, channelId),
+  validateConfig: () => ipcRenderer.invoke('remote-control:validate-config'),
+  getMessages: (limit) => ipcRenderer.invoke('remote-control:get-messages', limit),
+  clearMessages: () => ipcRenderer.invoke('remote-control:clear-messages'),
+  sendMessage: (platform, message, channelId) => ipcRenderer.invoke('remote-control:send-message', platform, message, channelId),
+  getPendingApprovals: () => ipcRenderer.invoke('remote-control:get-pending-approvals'),
+  approveCommand: (approvalId) => ipcRenderer.invoke('remote-control:approve-command', approvalId),
+  rejectCommand: (approvalId, reason) => ipcRenderer.invoke('remote-control:reject-command', approvalId, reason),
+  onMessage: (callback) => {
+    ipcRenderer.on('remote-control:message', (event, msg) => callback(msg));
+    return () => ipcRenderer.removeAllListeners('remote-control:message');
+  },
+  onApprovalRequired: (callback) => {
+    ipcRenderer.on('remote-control:approval-required', (event, approval) => callback(approval));
+    return () => ipcRenderer.removeAllListeners('remote-control:approval-required');
+  },
 });
 

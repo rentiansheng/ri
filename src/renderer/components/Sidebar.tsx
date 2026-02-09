@@ -13,12 +13,14 @@ interface CategoryTab {
 const CATEGORIES: CategoryTab[] = [
   { id: 'sessions', label: 'Sessions', icon: '⚡' },
   { id: 'flow', label: 'Flow', icon: '🛤️' },
+  { id: 'files', label: 'Files', icon: '📁' },
+  { id: 'remote', label: 'Remote', icon: '📡' },
   { id: 'notify', label: 'Notify', icon: '🔔' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
 ];
 
 // Views that have a navigation panel
-const VIEWS_WITH_NAV: AppView[] = ['sessions', 'notify', 'flow'];
+const VIEWS_WITH_NAV: AppView[] = ['sessions', 'notify', 'flow', 'files', 'remote'];
 
 interface SidebarProps {
   activeView: AppView;

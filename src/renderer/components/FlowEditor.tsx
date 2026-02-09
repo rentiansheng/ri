@@ -45,6 +45,14 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onClose }) => {
   const handleCommandChange = (index: number, value: string) => {
     const newCommands = [...commands];
     newCommands[index] = value;
+    
+    const isLastRow = index === commands.length - 1;
+    const hasContent = value.trim() !== '';
+    
+    if (isLastRow && hasContent) {
+      newCommands.push('');
+    }
+    
     setCommands(newCommands);
     setIsDirty(true);
   };

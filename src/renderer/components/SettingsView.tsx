@@ -6,7 +6,7 @@ import TerminalSettings from './Settings/TerminalSettings';
 import RemoteControlSettings from './Settings/RemoteControlSettings';
 import './SettingsView.css';
 
-type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode' | 'remoteControl';
+type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode' | 'remoteControl' | 'editor';
 
 interface NotificationSettings {
   enabled: boolean;
@@ -88,6 +88,10 @@ const SettingsView: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<NotificationTheme>('vscode');
+  const [editorSettings, setEditorSettings] = useState({
+    autoSave: false,
+    autoSaveDelay: 2,
+  });
 
   const configStore = useConfigStore();
 
@@ -122,6 +126,14 @@ const SettingsView: React.FC = () => {
         setNotificationSettings(defaultSettings);
         setSelectedTheme('vscode');
       }
+
+      // Load editor settings
+      if (loadedConfig.editor) {
+        setEditorSettings({
+          autoSave: loadedConfig.editor.autoSave ?? false,
+          autoSaveDelay: loadedConfig.editor.autoSaveDelay ?? 2,
+        });
+      }
     } catch (error) {
       console.error('Failed to load config:', error);
       showMessage('error', 'Failed to load configuration');
@@ -139,6 +151,7 @@ const SettingsView: React.FC = () => {
       const updatedConfig = {
         ...config,
         notification: notificationSettings,
+        editor: editorSettings,
       };
       
       const result = await window.config.update(updatedConfig);
@@ -648,6 +661,57 @@ const SettingsView: React.FC = () => {
     );
   };
 
+  const renderEditorSettings = () => {
+    return (
+      <div className="settings-section-content">
+        <div className="settings-group">
+          <h3>Auto Save</h3>
+          
+          <div className="settings-item">
+            <div className="settings-item-label">
+              <label>Enable Auto Save</label>
+              <span className="settings-item-description">
+                Automatically save files after changes
+              </span>
+            </div>
+            <div className="settings-item-control">
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={editorSettings.autoSave}
+                  onChange={(e) => setEditorSettings(prev => ({ ...prev, autoSave: e.target.checked }))}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-item">
+            <div className="settings-item-label">
+              <label>Auto Save Delay</label>
+              <span className="settings-item-description">
+                Delay in seconds before auto-saving
+              </span>
+            </div>
+            <div className="settings-item-control">
+              <input
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value={editorSettings.autoSaveDelay}
+                onChange={(e) => setEditorSettings(prev => ({ ...prev, autoSaveDelay: parseInt(e.target.value) || 2 }))}
+                className="settings-input-number"
+                disabled={!editorSettings.autoSave}
+              />
+              <span style={{ marginLeft: 8, color: '#888', fontSize: 12 }}>s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'notification':
@@ -658,6 +722,8 @@ const SettingsView: React.FC = () => {
         return <RemoteControlSettings />;
       case 'terminal':
         return <TerminalSettings />;
+      case 'editor':
+        return renderEditorSettings();
       case 'appearance':
         return <div className="settings-section-content">Appearance settings coming soon...</div>;
       case 'advanced':
@@ -678,6 +744,8 @@ const SettingsView: React.FC = () => {
         return 'Remote Control';
       case 'terminal':
         return 'Terminal';
+      case 'editor':
+        return 'Editor';
       case 'appearance':
         return 'Appearance';
       case 'advanced':
@@ -748,6 +816,14 @@ const SettingsView: React.FC = () => {
           >
             <span className="settings-nav-icon">💻</span>
             <span className="settings-nav-label">Terminal</span>
+          </button>
+          <button
+            className={`settings-nav-item ${activeSection === 'editor' ? 'active' : ''}`}
+            onClick={() => setActiveSection('editor')}
+            data-testid="settings-tab-editor"
+          >
+            <span className="settings-nav-icon">📝</span>
+            <span className="settings-nav-label">Editor</span>
           </button>
           <button
             className={`settings-nav-item ${activeSection === 'appearance' ? 'active' : ''}`}

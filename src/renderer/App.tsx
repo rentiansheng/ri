@@ -14,7 +14,9 @@ import { TabBar } from './components/TabBar';
 import FlowView from './components/FlowView';
 import FlowEditor from './components/FlowEditor';
 import SettingsView from './components/SettingsView';
-import FileViewer from './components/FileViewer';
+import RIView from './components/RIView';
+import RemoteControlPanel from './components/RemoteControlPanel';
+import FileManager from './components/FileManager';
 import { NotificationToastContainer } from './components/NotificationToast';
 import { useAIToolMonitor } from './hooks/useAIToolMonitor';
 import './styles/App.css';
@@ -24,7 +26,7 @@ if (import.meta.env.DEV) {
   import('./utils/testNotifications');
 }
 
-export type AppView = 'sessions' | 'flow' | 'notify' | 'settings';
+export type AppView = 'sessions' | 'flow' | 'files' | 'notify' | 'remote' | 'settings';
 
 function App() {
   // 精准订阅，避免不必要的重渲染
@@ -210,6 +212,10 @@ function App() {
             selectedPath={selectedFlowPath.join('/')}
           />
         );
+      case 'files':
+        return <FileManager />;
+      case 'remote':
+        return <RemoteControlPanel />;
       case 'settings':
         return null;
       default:
@@ -315,7 +321,7 @@ function App() {
           
           {activeTab?.type === 'file' && activeTab.filePath && (
             <div className="file-viewer-area">
-              <FileViewer filePath={activeTab.filePath} />
+              <RIView filePath={activeTab.filePath} />
             </div>
           )}
           
@@ -341,7 +347,7 @@ function App() {
         />
       </aside>
       
-      {(activeView === 'sessions' || activeView === 'notify' || activeView === 'flow') && (
+      {(activeView === 'sessions' || activeView === 'notify' || activeView === 'flow' || activeView === 'files' || activeView === 'remote') && (
         <div className="navigation-wrapper">
           <aside 
             className={`app-navigation ${sidebarCollapsed ? 'collapsed' : ''}`}

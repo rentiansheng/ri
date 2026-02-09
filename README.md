@@ -48,6 +48,7 @@ Automate your development workflows with the Flow feature:
 
 - **Tree Structure**: Organize workflows in folders and subfolders
 - **Visual Editor**: Edit workflow commands with line numbers
+- **Auto-Add Lines**: New line automatically added when typing in the last row
 - **One-Click Run**: Execute all workflow commands in a new session
 - **Right-Click Menu**: Quick actions for create, rename, and delete
 - **Collapsible Folders**: Keep your workflow list organized
@@ -58,7 +59,7 @@ Automate your development workflows with the Flow feature:
 - 📁 **Folder Organization**: Group related workflows together
 - ⚡ **Quick Execution**: Double-click to run a workflow
 - ✏️ **Inline Rename**: Edit names directly in the tree
-- 🔄 **Command Editor**: Full-featured command sequence editor
+- 🔄 **Command Editor**: Full-featured command sequence editor with auto-add
 - 💾 **Auto-Save**: Changes persist automatically
 
 ![Flow Editor](./docs/images/flow-editor.png)
@@ -68,6 +69,42 @@ Automate your development workflows with the Flow feature:
 - **Statistics**: Track record count, file size, and last activity time
 - **History Viewer**: Browse past commands with timestamps
 - **Log Management**: Clear individual session history when needed
+
+### File Viewer (RIView)
+
+VSCode-style file editor with powerful features:
+
+- **Toolbar Actions**: Save (💾), Format (📐), Validate (✓), Toggle Preview (👁️)
+- **Format Support**: JSON, YAML, XML validation and auto-formatting
+- **Markdown Preview**: Side-by-side split view with draggable resizer
+- **Tree View**: Collapsible JSON/YAML tree structure viewer
+- **Syntax Highlighting**: Prism.js-powered highlighting for multiple languages
+- **Search**: Find text within files with result navigation
+- **Status Bar**: Line count, encoding, language indicator
+
+**How to use:**
+1. Click the **⚡ Flow** icon in the sidebar
+2. Click the **"📄 Open File"** button in the top right
+3. Select the file you want to open in the file dialog
+4. The file will open in a new tab with RIView
+
+**Toolbar buttons:**
+| Button | Function | File Types |
+|--------|----------|------------|
+| 💾 | Save file (Cmd+S / Ctrl+S) | All files |
+| 📐 | Format/prettify code | JSON, YAML, XML |
+| ✓ | Validate syntax | JSON, YAML, XML |
+| 👁️ | Toggle split preview | Markdown |
+| 🌳 | Toggle tree view | JSON, YAML |
+| 🔍 | Search file content | All files |
+
+| Feature | JSON | YAML | XML | Markdown |
+|---------|------|------|-----|----------|
+| Syntax Highlighting | ✓ | ✓ | ✓ | ✓ |
+| Format/Prettify | ✓ | ✓ | ✓ | - |
+| Validation | ✓ | ✓ | ✓ | - |
+| Tree View | ✓ | ✓ | - | - |
+| Live Preview | - | - | - | ✓ (Split) |
 
 ### Notifications
 - **Real-time Alerts**: Desktop notifications for important terminal events
@@ -178,6 +215,7 @@ Alternatively, use the provided build script:
 │       │   ├── FlowList.tsx          # Workflow tree navigation
 │       │   ├── FlowEditor.tsx        # Workflow command editor
 │       │   ├── FlowView.tsx          # Flow main view
+│       │   ├── RIView.tsx            # VSCode-style file viewer/editor
 │       │   ├── SessionList.tsx       # Session navigation list
 │       │   ├── HistoryList.tsx       # History session list
 │       │   └── Settings/             # Settings components
@@ -254,7 +292,8 @@ The Flow feature lets you define reusable command sequences:
 | Feature | Description |
 |---------|-------------|
 | **Line Numbers** | Visual reference for command order |
-| **Add Command** | Press Enter or click `+` |
+| **Auto-Add Line** | New line added automatically when typing in last row |
+| **Add Command** | Press Enter or click `+` to insert line anywhere |
 | **Remove Command** | Press Backspace on empty line or click `×` |
 | **Reorder** | Use ↑↓ buttons or drag and drop |
 | **Working Directory** | Set `cwd` for command execution |
@@ -282,9 +321,11 @@ Access settings via the ⚙ icon:
 |-----|---------|
 | **Notification** | Desktop alerts, themes, external integrations |
 | **OpenCode** | Auto-start, plugin management |
-| **Terminal** | Font, colors, cursor, scrollback |
+| **Terminal** | Font family, colors, cursor, scrollback |
 | **Appearance** | Theme, layout options |
 | **Advanced** | Dev tools, logging, performance |
+
+> Note: Terminal font size and line height are fixed for optimal display.
 
 ### Keyboard Shortcuts
 

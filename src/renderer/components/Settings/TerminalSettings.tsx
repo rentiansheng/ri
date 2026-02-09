@@ -128,10 +128,7 @@ const TerminalSettings: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
-  // 终端配置状态
-  const [fontSize, setFontSize] = useState(14);
   const [fontFamily, setFontFamily] = useState('Menlo, Monaco, "Courier New", monospace');
-  const [lineHeight, setLineHeight] = useState(1.0);
   const [cursorStyle, setCursorStyle] = useState<'block' | 'underline' | 'bar'>('block');
   const [cursorBlink, setCursorBlink] = useState(true);
   const [scrollback, setScrollback] = useState(1000);
@@ -147,9 +144,7 @@ const TerminalSettings: React.FC = () => {
       setConfig(loadedConfig);
       
       if (loadedConfig.terminal) {
-        setFontSize(loadedConfig.terminal.fontSize || 14);
         setFontFamily(loadedConfig.terminal.fontFamily || 'Menlo, Monaco, "Courier New", monospace');
-        setLineHeight(loadedConfig.terminal.lineHeight || 1.0);
         setCursorStyle(loadedConfig.terminal.cursorStyle || 'block');
         setCursorBlink(loadedConfig.terminal.cursorBlink !== false);
         setScrollback(loadedConfig.terminal.scrollback || 1000);
@@ -174,9 +169,9 @@ const TerminalSettings: React.FC = () => {
         ...config,
         terminal: {
           ...config.terminal,
-          fontSize: fontSize || 14,
+          fontSize: 14,
           fontFamily,
-          lineHeight: lineHeight || 1.0,
+          lineHeight: 1.0,
           cursorStyle,
           cursorBlink,
           scrollback,
@@ -283,23 +278,6 @@ const TerminalSettings: React.FC = () => {
 
         <div className="settings-item">
           <div className="settings-item-label">
-            <label>字体大小</label>
-            <span className="settings-item-description">终端字体大小 (8-32)</span>
-          </div>
-          <div className="settings-item-control">
-            <input
-              type="number"
-              min="8"
-              max="32"
-              value={fontSize}
-              onChange={(e) => setFontSize(parseInt(e.target.value))}
-              className="settings-input-number"
-            />
-          </div>
-        </div>
-
-        <div className="settings-item">
-          <div className="settings-item-label">
             <label>字体族</label>
             <span className="settings-item-description">等宽字体，多个用逗号分隔</span>
           </div>
@@ -310,24 +288,6 @@ const TerminalSettings: React.FC = () => {
               onChange={(e) => setFontFamily(e.target.value)}
               className="settings-input"
               placeholder='Menlo, Monaco, "Courier New", monospace'
-            />
-          </div>
-        </div>
-
-        <div className="settings-item">
-          <div className="settings-item-label">
-            <label>行高</label>
-            <span className="settings-item-description">终端行高倍数 (0.8-2.0)</span>
-          </div>
-          <div className="settings-item-control">
-            <input
-              type="number"
-              min="0.8"
-              max="2.0"
-              step="0.1"
-              value={lineHeight}
-              onChange={(e) => setLineHeight(parseFloat(e.target.value))}
-              className="settings-input-number"
             />
           </div>
         </div>

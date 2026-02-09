@@ -457,15 +457,37 @@ class TerminalManager extends EventEmitter {
         };
       });
       
+      // 获取当前工作目录
+      let cwd = null;
+      try {
+        if (process.platform === 'darwin') {
+          // macOS: lsof outputs 'fcwd' on one line and path on next line starting with 'n'
+          const { stdout: cwdOutput } = await execAsync(`lsof -p ${shellPid} -Fn 2>/dev/null | awk '/^fcwd/{getline; print substr($0,2)}'`);
+          cwd = cwdOutput.trim() || null;
+        } else if (process.platform === 'linux') {
+          // Linux: use /proc filesystem
+          const { stdout: linuxCwd } = await execAsync(`readlink -f /proc/${shellPid}/cwd`);
+          cwd = linuxCwd.trim() || null;
+        } else {
+          // Fallback for other platforms
+          const { stdout: cwdOutput } = await execAsync(`lsof -p ${shellPid} -Fn 2>/dev/null | awk '/^fcwd/{getline; print substr($0,2)}'`);
+          cwd = cwdOutput.trim() || null;
+        }
+      } catch (e) {
+        console.error(`[TerminalManager] Error getting cwd for PID ${shellPid}:`, e.message);
+      }
+      
       return {
         shellPid,
         processes,
+        cwd,
       };
     } catch (error) {
       console.error(`[TerminalManager] Error getting process info for ${id}:`, error);
       return {
         shellPid,
         processes: [],
+        cwd: null,
       };
     }
   }
