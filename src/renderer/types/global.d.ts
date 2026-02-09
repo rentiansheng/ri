@@ -323,6 +323,10 @@ export interface FileAPI {
   readDir: (dirPath: string) => Promise<{ success: boolean; files?: FileEntry[]; error?: string }>;
   openDialog: (options?: object) => Promise<{ success: boolean; canceled?: boolean; filePaths?: string[]; error?: string }>;
   saveDialog: (options?: object) => Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }>;
+  mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
+  move: (srcPath: string, destPath: string) => Promise<{ success: boolean; error?: string }>;
+  delete: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
+  create: (filePath: string, content?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface OpencodePluginInfo {

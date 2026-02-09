@@ -22,6 +22,18 @@ interface ContextMenuState {
   path: string;
 }
 
+interface NewItemState {
+  parentPath: string;
+  type: 'file' | 'directory';
+  name: string;
+}
+
+interface DragState {
+  isDragging: boolean;
+  draggedPath: string | null;
+  dropTargetPath: string | null;
+}
+
 interface FileManagerProps {
   onOpenFile?: (filePath: string) => void;
 }
@@ -70,6 +82,13 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
   const [favoriteDirectories, setFavoriteDirectories] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [expandedFavorites, setExpandedFavorites] = useState<Set<string>>(new Set());
+  const [newItem, setNewItem] = useState<NewItemState | null>(null);
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    draggedPath: null,
+    dropTargetPath: null,
+  });
+  const newItemInputRef = useRef<HTMLInputElement>(null);
 
   const sessions = useTerminalStore(state => state.sessions);
   const tabs = useTerminalStore(state => state.tabs);
@@ -360,6 +379,133 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
     setContextMenu(null);
   };
 
+  const startNewItem = (parentPath: string, type: 'file' | 'directory') => {
+    if (!directoryContents[parentPath]) {
+      loadDirectory(parentPath);
+    }
+    setNewItem({ parentPath, type, name: '' });
+    setContextMenu(null);
+  };
+
+  const handleNewItemKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!newItem) return;
+    
+    if (e.key === 'Enter' && newItem.name.trim()) {
+      const fullPath = `${newItem.parentPath}/${newItem.name.trim()}`;
+      try {
+        if (newItem.type === 'directory') {
+          const result = await window.file.mkdir(fullPath);
+          if (!result.success) {
+            console.error('Failed to create directory:', result.error);
+            return;
+          }
+        } else {
+          const result = await window.file.create(fullPath, '');
+          if (!result.success) {
+            console.error('Failed to create file:', result.error);
+            return;
+          }
+        }
+        loadDirectory(newItem.parentPath);
+        setNewItem(null);
+      } catch (error) {
+        console.error('Failed to create item:', error);
+      }
+    } else if (e.key === 'Escape') {
+      setNewItem(null);
+    }
+  };
+
+  const handleNewItemBlur = () => {
+    setNewItem(null);
+  };
+
+  useEffect(() => {
+    if (newItem && newItemInputRef.current) {
+      newItemInputRef.current.focus();
+    }
+  }, [newItem]);
+
+  const handleDragStart = (e: React.DragEvent, path: string) => {
+    e.dataTransfer.setData('text/plain', path);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragState({
+      isDragging: true,
+      draggedPath: path,
+      dropTargetPath: null,
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDragState({
+      isDragging: false,
+      draggedPath: null,
+      dropTargetPath: null,
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetPath: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (dragState.draggedPath === targetPath) return;
+    if (dragState.draggedPath && targetPath.startsWith(dragState.draggedPath + '/')) return;
+    
+    e.dataTransfer.dropEffect = 'move';
+    setDragState(prev => ({ ...prev, dropTargetPath: targetPath }));
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      setDragState(prev => ({ ...prev, dropTargetPath: null }));
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDirPath: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const srcPath = e.dataTransfer.getData('text/plain');
+    if (!srcPath || srcPath === targetDirPath) {
+      handleDragEnd();
+      return;
+    }
+    
+    if (targetDirPath.startsWith(srcPath + '/')) {
+      handleDragEnd();
+      return;
+    }
+    
+    const fileName = srcPath.split('/').pop();
+    if (!fileName) {
+      handleDragEnd();
+      return;
+    }
+    
+    const destPath = `${targetDirPath}/${fileName}`;
+    
+    try {
+      const result = await window.file.move(srcPath, destPath);
+      if (result.success) {
+        const srcDir = srcPath.substring(0, srcPath.lastIndexOf('/'));
+        if (directoryContents[srcDir]) {
+          loadDirectory(srcDir);
+        }
+        if (directoryContents[targetDirPath]) {
+          loadDirectory(targetDirPath);
+        }
+      } else {
+        console.error('Failed to move file:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to move file:', error);
+    }
+    
+    handleDragEnd();
+  };
+
   const shouldShowHiddenFor = (dirPath: string): boolean => {
     const override = dirShowHiddenOverride[dirPath];
     return override !== undefined ? override : showHidden;
@@ -448,20 +594,45 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
     if (!contents) return null;
 
     const sorted = sortEntries(contents, dirPath);
+    const showNewItemInput = newItem && newItem.parentPath === dirPath;
 
     return (
       <div className="fm-dir-contents" style={{ marginLeft: depth * 12 }}>
+        {showNewItemInput && (
+          <div className="fm-new-item-row">
+            <span className="fm-expand-icon-placeholder" />
+            <span className="fm-file-icon">{newItem.type === 'directory' ? '📁' : '📄'}</span>
+            <input
+              ref={newItemInputRef}
+              type="text"
+              className="fm-new-item-input"
+              value={newItem.name}
+              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              onKeyDown={handleNewItemKeyDown}
+              onBlur={handleNewItemBlur}
+              placeholder={newItem.type === 'directory' ? 'New folder name...' : 'New file name...'}
+            />
+          </div>
+        )}
         {sorted.map(entry => {
           const fullPath = entry.path || `${dirPath}/${entry.name}`;
           const isExpanded = !!directoryContents[fullPath];
+          const isDragging = dragState.draggedPath === fullPath;
+          const isDropTarget = entry.isDirectory && dragState.dropTargetPath === fullPath;
           
           return (
             <div key={entry.name}>
               <div 
-                className={`fm-file-entry ${entry.isDirectory ? 'directory' : 'file'} ${(entry.isHidden || entry.name.startsWith('.')) ? 'hidden-file' : ''}`}
+                className={`fm-file-entry ${entry.isDirectory ? 'directory' : 'file'} ${(entry.isHidden || entry.name.startsWith('.')) ? 'hidden-file' : ''} ${isDragging ? 'dragging' : ''} ${isDropTarget ? 'drop-target' : ''}`}
                 onClick={() => handleFileClick(fullPath, entry.isDirectory)}
                 onContextMenu={(e) => handleContextMenu(e, entry.isDirectory ? 'directory' : 'file', fullPath)}
                 title={`${entry.name}${entry.size ? ` • ${formatSize(entry.size)}` : ''}${entry.mtime ? ` • Modified: ${new Date(entry.mtime).toLocaleString()}` : ''}`}
+                draggable
+                onDragStart={(e) => handleDragStart(e, fullPath)}
+                onDragEnd={handleDragEnd}
+                onDragOver={entry.isDirectory ? (e) => handleDragOver(e, fullPath) : undefined}
+                onDragLeave={entry.isDirectory ? handleDragLeave : undefined}
+                onDrop={entry.isDirectory ? (e) => handleDrop(e, fullPath) : undefined}
               >
                 {entry.isDirectory && (
                   <span className="fm-expand-icon">{isExpanded ? '▼' : '▶'}</span>
@@ -532,6 +703,13 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
       >
         {isDir && contextMenu.path && (
           <>
+            <div className="fm-context-item" onClick={() => startNewItem(contextMenu.path, 'file')}>
+              📄 New File
+            </div>
+            <div className="fm-context-item" onClick={() => startNewItem(contextMenu.path, 'directory')}>
+              📁 New Folder
+            </div>
+            <div className="fm-context-separator" />
             {!isFavorite && (
               <div className="fm-context-item" onClick={() => addToFavorites(contextMenu.path)}>
                 ⭐ Add to Favorites

@@ -215,6 +215,64 @@ ipcMain.handle('file:save-dialog', async (event, options) => {
   }
 });
 
+ipcMain.handle('file:mkdir', async (event, dirPath) => {
+  try {
+    fs.mkdirSync(dirPath, { recursive: true });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:move', async (event, srcPath, destPath) => {
+  try {
+    // Check if source exists
+    if (!fs.existsSync(srcPath)) {
+      return { success: false, error: 'Source path does not exist' };
+    }
+    // Check if destination already exists
+    if (fs.existsSync(destPath)) {
+      return { success: false, error: 'Destination already exists' };
+    }
+    fs.renameSync(srcPath, destPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:delete', async (event, targetPath) => {
+  try {
+    const stats = fs.statSync(targetPath);
+    if (stats.isDirectory()) {
+      fs.rmSync(targetPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(targetPath);
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:create', async (event, filePath, content = '') => {
+  try {
+    // Check if file already exists
+    if (fs.existsSync(filePath)) {
+      return { success: false, error: 'File already exists' };
+    }
+    // Ensure parent directory exists
+    const parentDir = path.dirname(filePath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, content, 'utf8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // ------------------ IPC: OpenCode ------------------
 
 ipcMain.handle('opencode:start-server', async () => {
