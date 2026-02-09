@@ -309,13 +309,24 @@ const SplitTerminalView: React.FC<SplitTerminalViewProps> = ({
               
               setActiveTerminalId(pane.terminalId);
               setSessionActiveTerminal(sessionId, pane.terminalId);
-              setTimeout(() => {
+              
+              const focusHiddenInput = () => {
                 const terminalElement = document.querySelector(`[data-terminal-id="${pane.terminalId}"]`);
                 const hiddenInput = terminalElement?.querySelector('textarea');
                 if (hiddenInput) {
                   hiddenInput.focus({ preventScroll: true });
+                  return true;
                 }
-              }, 0);
+                return false;
+              };
+              
+              if (!focusHiddenInput()) {
+                setTimeout(() => {
+                  if (!focusHiddenInput()) {
+                    setTimeout(focusHiddenInput, 100);
+                  }
+                }, 0);
+              }
             }
           }}
         >

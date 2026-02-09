@@ -631,13 +631,19 @@ const Terminal: React.FC<TerminalProps> = ({
         }
       });
 
-      // Fit 和聚焦
+      // Fit, setup hidden input, and focus
       setTimeout(() => {
         if (fitAddon && xterm) {
           fitAddon.fit();
           const { cols, rows } = xterm;
           window.terminal.resize({ id: terminalId, cols, rows });
         }
+        
+        if (!hiddenInputRef.current && containerRef.current) {
+          console.log(`[Terminal ${sessionId}/${terminalId}] Setting up hidden input after xterm open`);
+          setupHiddenInput();
+        }
+        
         syncInputPosition();
       }, 100);
 
@@ -729,31 +735,37 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!xterm || !xtermInstance || !containerRef.current) return;
     if (!xtermInstance.isOpened) return;
     
-    // 如果已经有 textarea，不重复创建
+    // 如果已经有 textarea，检查它是否还在 DOM 中
     if (hiddenInputRef.current) {
-      console.log(`[Terminal ${sessionId}] Hidden input already exists`);
-      return;
+      // 验证 textarea 是否还在 containerRef 中
+      if (containerRef.current.contains(hiddenInputRef.current)) {
+        console.log(`[Terminal ${sessionId}/${terminalId}] Hidden input already exists and is in DOM`);
+        return;
+      } else {
+        // textarea 存在但不在 DOM 中，清理引用
+        console.log(`[Terminal ${sessionId}/${terminalId}] Hidden input exists but not in DOM, recreating`);
+        hiddenInputRef.current = null;
+      }
     }
     
-    console.log(`[Terminal ${sessionId}] Setting up hidden input`);
+    console.log(`[Terminal ${sessionId}/${terminalId}] Setting up hidden input`);
     const cleanup = setupHiddenInput();
     
     // 只在组件真正卸载时清理（不在 isVisible 变化时清理）
     return () => {
-      console.log(`[Terminal ${sessionId}] Cleaning up hidden input (component unmount)`);
+      console.log(`[Terminal ${sessionId}/${terminalId}] Cleaning up hidden input (component unmount)`);
       if (cleanup) cleanup();
     };
-  }, [xterm, xtermInstance, isVisible, sessionId]);
+  }, [xterm, xtermInstance, isVisible, sessionId, terminalId]);
 
   // 当 tab 变为 active 和 visible 时，调整大小和聚焦
   useEffect(() => {
     if (!isActive || !isVisible) return;
-    if (!xterm || !fitAddon || !hiddenInputRef.current) return;
+    if (!xterm || !fitAddon) return;
     
     console.log(`[Terminal ${sessionId}/${terminalId}] Tab became active and visible, fitting and focusing`);
     
-    // 延迟一下，确保 DOM 已经渲染完成
-    const timer = setTimeout(() => {
+    const doFitAndFocus = () => {
       if (fitAddon && xterm) {
         try {
           fitAddon.fit();
@@ -765,6 +777,14 @@ const Terminal: React.FC<TerminalProps> = ({
       }
       if (hiddenInputRef.current && !searchVisibleRef.current) {
         hiddenInputRef.current.focus({ preventScroll: true });
+        return true;
+      }
+      return false;
+    };
+    
+    const timer = setTimeout(() => {
+      if (!doFitAndFocus()) {
+        setTimeout(doFitAndFocus, 100);
       }
       syncInputPosition();
     }, 50);
