@@ -430,3 +430,152 @@
   font-weight: normal;
   opacity: 0.7;
 }
+
+/* Collapsible Section Styles */
+.collapsible-section {
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.collapsible-section.enabled {
+  border-color: var(--accent-color, #58a6ff);
+}
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--panel-bg, #1a1a1a);
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: var(--button-hover-bg, #252525);
+}
+
+.collapsible-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.collapsible-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.collapse-icon {
+  font-size: 10px;
+  color: var(--text-secondary, #888);
+  transition: transform 0.2s;
+}
+
+.collapse-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.section-icon {
+  font-size: 16px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.collapsible-content {
+  padding: 16px;
+  border-top: 1px solid var(--border-color, #333);
+  background: var(--input-bg, #1e1e1e);
+}
+
+.status-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.status-badge.online {
+  color: var(--success-color, #3fb950);
+  background: rgba(63, 185, 80, 0.15);
+}
+
+.status-badge.offline {
+  color: var(--text-secondary, #888);
+  background: rgba(136, 136, 136, 0.15);
+}
+
+.status-panel.compact {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.status-value {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--text-secondary, #aaa);
+}
+
+.test-result {
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.test-result.success {
+  background: rgba(63, 185, 80, 0.1);
+  border: 1px solid var(--success-color, #3fb950);
+  color: var(--success-color, #3fb950);
+}
+
+.test-result.error {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid var(--error-color, #f85149);
+  color: var(--error-color, #f85149);
+}
+
+.advanced-settings {
+  margin-top: 16px;
+}
+
+.advanced-settings summary {
+  cursor: pointer;
+  color: var(--text-secondary, #888);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.advanced-settings summary:hover {
+  color: var(--text-primary, #fff);
+}
+
+.advanced-content {
+  padding-top: 12px;
+}
+
+.setting-input-number {
+  width: 120px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 4px;
+  background: var(--input-bg, #1e1e1e);
+  color: var(--text-primary, #fff);
+  font-size: 13px;
+}
+
+.setting-input-number:focus {
+  outline: none;
+  border-color: var(--accent-color, #58a6ff);
+}
+
+.setting-input-number:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

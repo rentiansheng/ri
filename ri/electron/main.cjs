@@ -7,6 +7,7 @@ const OpencodeManager = require('./opencodeManager.cjs');
 const OpencodePluginManager = require('./opencodePlugin.cjs');
 const FlowManager = require('./flowManager.cjs');
 const RemoteControlManager = require('./remoteControlManager.cjs');
+const GatewayClient = require('./gatewayClient.cjs');
 
 // Set application name as early as possible (must be before app.whenReady)
 app.setName('RI');
@@ -77,6 +78,8 @@ opencodePluginManager.setConfigManager(configManager);
 
 const remoteControlManager = new RemoteControlManager(terminalManager, config);
 
+const gatewayClient = new GatewayClient(terminalManager, config);
+
 configManager.on('config-changed', (newConfig) => {
   console.log('[Main] Config changed, applying...');
   terminalManager.applyConfig(newConfig);
@@ -84,6 +87,8 @@ configManager.on('config-changed', (newConfig) => {
   opencodeManager.setConfig(newConfig);
   
   remoteControlManager.setConfig(newConfig);
+  
+  gatewayClient.setConfig(newConfig);
   
   if (notificationManager) {
     notificationManager.updateConfig(newConfig);
@@ -699,6 +704,13 @@ app.whenReady().then(() => {
       console.error('[Main] Failed to initialize Remote Control:', err);
     });
   }
+  
+  if (currentConfig.gateway?.enabled) {
+    console.log('[Main] Starting Gateway Client...');
+    gatewayClient.start().catch(err => {
+      console.error('[Main] Failed to start Gateway Client:', err);
+    });
+  }
 });
 
 const cleanupTerminals = () => {
@@ -717,11 +729,17 @@ const cleanupRemoteControl = () => {
   remoteControlManager.cleanup();
 };
 
+const cleanupGateway = () => {
+  console.log('[Main] Cleaning up Gateway Client...');
+  gatewayClient.stop();
+};
+
 app.on('before-quit', (event) => {
   console.log('[Main] App is about to quit...');
   cleanupTerminals();
   cleanupOpencode();
   cleanupRemoteControl();
+  cleanupGateway();
 });
 
 app.on('will-quit', () => {
@@ -729,6 +747,7 @@ app.on('will-quit', () => {
   cleanupTerminals();
   cleanupOpencode();
   cleanupRemoteControl();
+  cleanupGateway();
 });
 
 app.on('window-all-closed', () => {
@@ -736,6 +755,7 @@ app.on('window-all-closed', () => {
   cleanupTerminals();
   cleanupOpencode();
   cleanupRemoteControl();
+  cleanupGateway();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -1197,5 +1217,95 @@ remoteControlManager.on('message', (msg) => {
 remoteControlManager.on('approval-required', (approval) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('remote-control:approval-required', approval);
+  }
+});
+
+ipcMain.handle('gateway:get-status', async () => {
+  try {
+    return { success: true, status: gatewayClient.getStatus() };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gateway:start', async () => {
+  try {
+    await gatewayClient.start();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gateway:stop', async () => {
+  try {
+    await gatewayClient.stop();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gateway:test-connection', async () => {
+  try {
+    const url = configManager.getConfig().gateway?.url || 'http://localhost:8080';
+    const http = require('http');
+    const https = require('https');
+    
+    return new Promise((resolve) => {
+      const parsedUrl = new URL(url);
+      const lib = parsedUrl.protocol === 'https:' ? https : http;
+      
+      const req = lib.request({
+        method: 'GET',
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+        path: '/health',
+        timeout: 5000,
+      }, (res) => {
+        if (res.statusCode === 200) {
+          resolve({ success: true });
+        } else {
+          resolve({ success: false, error: `Server returned ${res.statusCode}` });
+        }
+      });
+      
+      req.on('error', (err) => {
+        resolve({ success: false, error: err.message });
+      });
+      
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ success: false, error: 'Connection timeout' });
+      });
+      
+      req.end();
+    });
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+gatewayClient.on('state-change', ({ oldState, newState }) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('gateway:state-change', { oldState, newState });
+  }
+});
+
+gatewayClient.on('connected', (info) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('gateway:connected', info);
+  }
+});
+
+gatewayClient.on('error', (error) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('gateway:error', { message: error.message });
+  }
+});
+
+gatewayClient.on('message', (msg) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('gateway:message', msg);
   }
 });

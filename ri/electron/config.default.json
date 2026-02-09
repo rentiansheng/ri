@@ -122,5 +122,14 @@
     "showHidden": false,
     "sortBy": "name",
     "sortOrder": "asc"
+  },
+  "gateway": {
+    "enabled": false,
+    "url": "http://localhost:8080",
+    "riID": "",
+    "pollTimeout": 30000,
+    "heartbeatInterval": 10000,
+    "reconnectInterval": 1000,
+    "maxReconnectDelay": 30000
   }
 }

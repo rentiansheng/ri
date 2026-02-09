@@ -3,9 +3,95 @@ import { useConfigStore } from '../../store/configStore';
 import type { RemoteControlStatus, RemoteControlTestResult, RemoteControlConnectionResult, RemoteControlNotificationResult, RemoteControlValidationResult } from '../../types/global';
 import './RemoteControlSettings.css';
 
+interface GatewayStatus {
+  connected: boolean;
+  state: string;
+  gatewayURL: string;
+  riID: string;
+  activeSession: { sessionId: string } | null;
+}
+
+interface GatewayConfig {
+  enabled: boolean;
+  url: string;
+  riID: string;
+  pollTimeout: number;
+  heartbeatInterval: number;
+  reconnectInterval: number;
+  maxReconnectDelay: number;
+}
+
+const defaultGatewayConfig: GatewayConfig = {
+  enabled: false,
+  url: 'http://localhost:8080',
+  riID: '',
+  pollTimeout: 30000,
+  heartbeatInterval: 10000,
+  reconnectInterval: 1000,
+  maxReconnectDelay: 30000,
+};
+
+interface CollapsibleSectionProps {
+  title: string;
+  icon: string;
+  enabled: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  statusIndicator?: React.ReactNode;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+  hideToggle?: boolean;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
+  title,
+  icon,
+  enabled,
+  onToggle,
+  disabled,
+  statusIndicator,
+  children,
+  defaultExpanded = false,
+  hideToggle = false,
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <div className={`collapsible-section ${enabled ? 'enabled' : ''} ${expanded ? 'expanded' : ''}`}>
+      <div className="collapsible-header" onClick={() => setExpanded(!expanded)}>
+        <div className="collapsible-header-left">
+          <span className={`collapse-icon ${expanded ? 'expanded' : ''}`}>▶</span>
+          <span className="section-icon">{icon}</span>
+          <span className="section-title">{title}</span>
+          {statusIndicator}
+        </div>
+        {!hideToggle && (
+          <div className="collapsible-header-right" onClick={(e) => e.stopPropagation()}>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={onToggle}
+                disabled={disabled}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+        )}
+      </div>
+      {expanded && (
+        <div className="collapsible-content">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const RemoteControlSettings: React.FC = () => {
   const { config, updateConfig } = useConfigStore();
   const [status, setStatus] = useState<RemoteControlStatus | null>(null);
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<RemoteControlTestResult | null>(null);
@@ -16,6 +102,7 @@ export const RemoteControlSettings: React.FC = () => {
   const [testChannelId, setTestChannelId] = useState('');
   const [validationResult, setValidationResult] = useState<RemoteControlValidationResult | null>(null);
   const [validating, setValidating] = useState(false);
+  const [gatewayTestResult, setGatewayTestResult] = useState<{ success: boolean; message: string } | null>(null);
   
   const remoteConfig = config?.remoteControl || {
     enabled: false,
@@ -25,8 +112,16 @@ export const RemoteControlSettings: React.FC = () => {
     allowedChannels: [],
   };
 
+  const gatewayConfig: GatewayConfig = {
+    ...defaultGatewayConfig,
+    ...config?.gateway,
+  };
+
   useEffect(() => {
     loadStatus();
+    loadGatewayStatus();
+    const interval = setInterval(loadGatewayStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadStatus = async () => {
@@ -37,6 +132,17 @@ export const RemoteControlSettings: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to load remote control status:', err);
+    }
+  };
+
+  const loadGatewayStatus = async () => {
+    try {
+      const result = await window.gateway.getStatus();
+      if (result.success && result.status) {
+        setGatewayStatus(result.status);
+      }
+    } catch (err) {
+      console.error('Failed to load gateway status:', err);
     }
   };
 
@@ -151,6 +257,120 @@ export const RemoteControlSettings: React.FC = () => {
     });
   };
 
+  const handleGatewayToggle = async () => {
+    const newEnabled = !gatewayConfig.enabled;
+    setLoading(true);
+    setError(null);
+
+    try {
+      await updateConfig({
+        gateway: { ...gatewayConfig, enabled: newEnabled },
+      });
+
+      if (newEnabled) {
+        const result = await window.gateway.connect();
+        if (!result.success) {
+          setError(result.error || 'Failed to connect to Gateway');
+        }
+      } else {
+        await window.gateway.disconnect();
+      }
+      await loadGatewayStatus();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGatewayUrlChange = async (url: string) => {
+    await updateConfig({
+      gateway: { ...gatewayConfig, url },
+    });
+  };
+
+  const handleGatewayRiIdChange = async (riID: string) => {
+    await updateConfig({
+      gateway: { ...gatewayConfig, riID },
+    });
+  };
+
+  const handleGatewayAdvancedChange = async (field: keyof GatewayConfig, value: number) => {
+    await updateConfig({
+      gateway: { ...gatewayConfig, [field]: value },
+    });
+  };
+
+  const handleGatewayTestConnection = async () => {
+    setLoading(true);
+    setGatewayTestResult(null);
+    setError(null);
+
+    try {
+      const result = await window.gateway.testConnection();
+      setGatewayTestResult({
+        success: result.success,
+        message: result.success
+          ? `Connected to Gateway at ${gatewayConfig.url}`
+          : result.error || 'Connection failed',
+      });
+    } catch (err: any) {
+      setGatewayTestResult({
+        success: false,
+        message: err.message || 'Connection test failed',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGatewayReconnect = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await window.gateway.disconnect();
+      await new Promise((r) => setTimeout(r, 500));
+      const result = await window.gateway.connect();
+      if (!result.success) {
+        setError(result.error || 'Reconnection failed');
+      }
+      await loadGatewayStatus();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getGatewayStateColor = (state: string): string => {
+    switch (state) {
+      case 'CONNECTED':
+        return '#4caf50';
+      case 'DEGRADED':
+        return '#ff9800';
+      case 'REGISTERING':
+        return '#2196f3';
+      default:
+        return '#888';
+    }
+  };
+
+  const getGatewayStateLabel = (state: string): string => {
+    switch (state) {
+      case 'CONNECTED':
+        return '● Connected';
+      case 'DEGRADED':
+        return '◐ Degraded';
+      case 'REGISTERING':
+        return '○ Connecting...';
+      case 'DISCONNECTED':
+        return '○ Disconnected';
+      default:
+        return `○ ${state}`;
+    }
+  };
+
   const handleRunTest = async (testType?: string) => {
     setLoading(true);
     setError(null);
@@ -231,28 +451,31 @@ export const RemoteControlSettings: React.FC = () => {
       <div className="settings-section">
         <h3>Remote Control</h3>
         <p className="section-description">
-          Control AI tools remotely via Discord or Slack bots
+          Control AI tools remotely via Discord, Slack bots, or Gateway server
         </p>
 
-        <div className="setting-row">
-          <div className="setting-label">
-            <span>Enable Remote Control</span>
-            <span className="setting-hint">Allow controlling terminal sessions via chat bots</span>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={remoteConfig.enabled}
-              onChange={handleToggleEnabled}
-              disabled={loading}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
+        {error && <div className="error-message">{error}</div>}
+      </div>
+
+      <CollapsibleSection
+        title="Enable Remote Control"
+        icon="📡"
+        enabled={remoteConfig.enabled}
+        onToggle={handleToggleEnabled}
+        disabled={loading}
+        defaultExpanded={true}
+        statusIndicator={
+          status && (
+            <span className={`status-badge ${status.discordConnected || status.slackConnected ? 'online' : 'offline'}`}>
+              {status.discordConnected || status.slackConnected ? '● Active' : '○ Inactive'}
+            </span>
+          )
+        }
+      >
+        <p className="setting-hint" style={{ marginBottom: 12 }}>Allow controlling terminal sessions via chat bots and Gateway</p>
 
         {status && (
-          <div className="status-panel">
-            <h4>Status</h4>
+          <div className="status-panel compact">
             <div className="status-row">
               <span>Discord:</span>
               <span className={status.discordConnected ? 'status-online' : 'status-offline'}>
@@ -265,6 +488,14 @@ export const RemoteControlSettings: React.FC = () => {
                 {status.slackConnected ? '● Online' : '○ Offline'}
               </span>
             </div>
+            {gatewayStatus && (
+              <div className="status-row">
+                <span>Gateway:</span>
+                <span style={{ color: getGatewayStateColor(gatewayStatus.state) }}>
+                  {getGatewayStateLabel(gatewayStatus.state)}
+                </span>
+              </div>
+            )}
             {status.activeSession && (
               <div className="status-row">
                 <span>Active Session:</span>
@@ -347,28 +578,20 @@ export const RemoteControlSettings: React.FC = () => {
             </div>
           </div>
         )}
+      </CollapsibleSection>
 
-        {error && <div className="error-message">{error}</div>}
-      </div>
-
-      <div className="settings-section">
-        <h3>Discord Bot</h3>
-        
-        <div className="setting-row">
-          <div className="setting-label">
-            <span>Enable Discord</span>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={remoteConfig.discord?.enabled || false}
-              onChange={handleDiscordToggle}
-              disabled={!remoteConfig.enabled}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
-
+      <CollapsibleSection
+        title="Discord Bot"
+        icon="🎮"
+        enabled={remoteConfig.discord?.enabled || false}
+        onToggle={handleDiscordToggle}
+        disabled={!remoteConfig.enabled}
+        statusIndicator={
+          status?.discordConnected && (
+            <span className="status-badge online">● Online</span>
+          )
+        }
+      >
         <div className="setting-row">
           <div className="setting-label">
             <span>Bot Token</span>
@@ -402,26 +625,20 @@ export const RemoteControlSettings: React.FC = () => {
             📤 Send Test Message
           </button>
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="settings-section">
-        <h3>Slack Bot</h3>
-        
-        <div className="setting-row">
-          <div className="setting-label">
-            <span>Enable Slack</span>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={remoteConfig.slack?.enabled || false}
-              onChange={handleSlackToggle}
-              disabled={!remoteConfig.enabled}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
-
+      <CollapsibleSection
+        title="Slack Bot"
+        icon="💬"
+        enabled={remoteConfig.slack?.enabled || false}
+        onToggle={handleSlackToggle}
+        disabled={!remoteConfig.enabled}
+        statusIndicator={
+          status?.slackConnected && (
+            <span className="status-badge online">● Online</span>
+          )
+        }
+      >
         <div className="setting-row">
           <div className="setting-label">
             <span>Bot Token</span>
@@ -468,15 +685,183 @@ export const RemoteControlSettings: React.FC = () => {
             📤 Send Test Message
           </button>
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="settings-section">
-        <h3>Security</h3>
-        
+      <CollapsibleSection
+        title="Gateway Server"
+        icon="🌐"
+        enabled={gatewayConfig.enabled}
+        onToggle={handleGatewayToggle}
+        disabled={loading}
+        statusIndicator={
+          gatewayStatus && gatewayStatus.state === 'CONNECTED' && (
+            <span className="status-badge online">● Connected</span>
+          )
+        }
+      >
+        <p className="setting-hint" style={{ marginBottom: 12 }}>Connect to a Gateway server for remote control via Bot interactive mode</p>
+
+        {gatewayStatus && (
+          <div className="status-panel compact">
+            <div className="status-row">
+              <span>State:</span>
+              <span style={{ color: getGatewayStateColor(gatewayStatus.state) }}>
+                {getGatewayStateLabel(gatewayStatus.state)}
+              </span>
+            </div>
+            <div className="status-row">
+              <span>Gateway URL:</span>
+              <span className="status-value">{gatewayStatus.gatewayURL}</span>
+            </div>
+            <div className="status-row">
+              <span>RI ID:</span>
+              <span className="status-value">{gatewayStatus.riID}</span>
+            </div>
+            {gatewayStatus.activeSession && (
+              <div className="status-row">
+                <span>Active Session:</span>
+                <span className="status-value">{gatewayStatus.activeSession.sessionId.slice(0, 12)}...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {gatewayTestResult && (
+          <div className={`test-result ${gatewayTestResult.success ? 'success' : 'error'}`}>
+            {gatewayTestResult.success ? '✅' : '❌'} {gatewayTestResult.message}
+          </div>
+        )}
+
+        <div className="setting-row">
+          <div className="setting-label">
+            <span>Gateway URL</span>
+            <span className="setting-hint">HTTP/HTTPS endpoint of the Gateway server</span>
+          </div>
+          <input
+            type="text"
+            className="setting-input"
+            placeholder="http://localhost:8080"
+            value={gatewayConfig.url}
+            onChange={(e) => handleGatewayUrlChange(e.target.value)}
+            disabled={loading || gatewayConfig.enabled}
+          />
+        </div>
+
+        <div className="setting-row">
+          <div className="setting-label">
+            <span>RI Instance ID</span>
+            <span className="setting-hint">Unique identifier (auto-generated if empty)</span>
+          </div>
+          <input
+            type="text"
+            className="setting-input"
+            placeholder="my-desktop-001"
+            value={gatewayConfig.riID}
+            onChange={(e) => handleGatewayRiIdChange(e.target.value)}
+            disabled={loading || gatewayConfig.enabled}
+          />
+        </div>
+
+        <div className="test-connection-row">
+          <button
+            className="test-button"
+            onClick={handleGatewayTestConnection}
+            disabled={loading || !gatewayConfig.url}
+          >
+            🔗 Test Connection
+          </button>
+          {gatewayConfig.enabled && (
+            <button className="test-button" onClick={handleGatewayReconnect} disabled={loading}>
+              🔄 Reconnect
+            </button>
+          )}
+        </div>
+
+        <details className="advanced-settings">
+          <summary>Advanced Settings</summary>
+          <div className="advanced-content">
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>Poll Timeout</span>
+                <span className="setting-hint">Long polling timeout (ms)</span>
+              </div>
+              <input
+                type="number"
+                className="setting-input-number"
+                min="5000"
+                max="60000"
+                step="1000"
+                value={gatewayConfig.pollTimeout}
+                onChange={(e) => handleGatewayAdvancedChange('pollTimeout', parseInt(e.target.value) || 30000)}
+                disabled={loading || gatewayConfig.enabled}
+              />
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>Heartbeat Interval</span>
+                <span className="setting-hint">Heartbeat interval (ms)</span>
+              </div>
+              <input
+                type="number"
+                className="setting-input-number"
+                min="5000"
+                max="60000"
+                step="1000"
+                value={gatewayConfig.heartbeatInterval}
+                onChange={(e) => handleGatewayAdvancedChange('heartbeatInterval', parseInt(e.target.value) || 10000)}
+                disabled={loading || gatewayConfig.enabled}
+              />
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>Reconnect Interval</span>
+                <span className="setting-hint">Initial reconnect delay (ms)</span>
+              </div>
+              <input
+                type="number"
+                className="setting-input-number"
+                min="500"
+                max="10000"
+                step="500"
+                value={gatewayConfig.reconnectInterval}
+                onChange={(e) => handleGatewayAdvancedChange('reconnectInterval', parseInt(e.target.value) || 1000)}
+                disabled={loading || gatewayConfig.enabled}
+              />
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>Max Reconnect Delay</span>
+                <span className="setting-hint">Maximum delay between reconnects (ms)</span>
+              </div>
+              <input
+                type="number"
+                className="setting-input-number"
+                min="5000"
+                max="120000"
+                step="5000"
+                value={gatewayConfig.maxReconnectDelay}
+                onChange={(e) => handleGatewayAdvancedChange('maxReconnectDelay', parseInt(e.target.value) || 30000)}
+                disabled={loading || gatewayConfig.enabled}
+              />
+            </div>
+          </div>
+        </details>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Security"
+        icon="🔒"
+        enabled={true}
+        onToggle={() => {}}
+        hideToggle={true}
+      >
         <div className="setting-row">
           <div className="setting-label">
             <span>Require Approval</span>
-            <span className="setting-hint">Commands must be approved in the Remote Control panel before execution</span>
+            <span className="setting-hint">Commands must be approved before execution</span>
           </div>
           <label className="toggle-switch">
             <input
@@ -492,7 +877,7 @@ export const RemoteControlSettings: React.FC = () => {
         <div className="setting-row">
           <div className="setting-label">
             <span>Allowed User IDs</span>
-            <span className="setting-hint">Comma-separated list of user IDs (empty = allow all)</span>
+            <span className="setting-hint">Comma-separated list (empty = allow all)</span>
           </div>
           <input
             type="text"
@@ -507,7 +892,7 @@ export const RemoteControlSettings: React.FC = () => {
         <div className="setting-row">
           <div className="setting-label">
             <span>Allowed Channel IDs</span>
-            <span className="setting-hint">Comma-separated list of channel IDs (empty = allow all)</span>
+            <span className="setting-hint">Comma-separated list (empty = allow all)</span>
           </div>
           <input
             type="text"
@@ -518,10 +903,10 @@ export const RemoteControlSettings: React.FC = () => {
             disabled={!remoteConfig.enabled}
           />
         </div>
-      </div>
+      </CollapsibleSection>
 
       <div className="settings-section">
-        <h3>Commands</h3>
+        <h3>Commands Reference</h3>
         <div className="commands-list">
           <div className="command-item">
             <code>/ai &lt;prompt&gt;</code>
@@ -546,6 +931,10 @@ export const RemoteControlSettings: React.FC = () => {
           <div className="command-item">
             <code>/y or /n</code>
             <span>Send confirmation response</span>
+          </div>
+          <div className="command-item">
+            <code>/help</code>
+            <span>Show available commands</span>
           </div>
         </div>
       </div>

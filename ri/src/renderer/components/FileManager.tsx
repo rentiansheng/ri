@@ -39,6 +39,7 @@ interface FileManagerProps {
 }
 
 const POLL_INTERVAL = 3000;
+const DIR_REFRESH_INTERVAL = 5000;
 
 // Helper to format file size
 const formatSize = (bytes: number): string => {
@@ -215,7 +216,22 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
     }
     
     setWorkspaces(allWorkspaces);
-  }, [getFilteredSessions, fetchWorkspaceCwd]);
+
+    const expandedDirs = Object.keys(directoryContents);
+    const favoriteDirs = Array.from(expandedFavorites);
+    const dirsToRefresh = [...new Set([...expandedDirs, ...favoriteDirs])];
+    
+    for (const dirPath of dirsToRefresh) {
+      try {
+        const result = await window.file.readDir(dirPath);
+        if (result.success && result.files) {
+          setDirectoryContents(prev => ({ ...prev, [dirPath]: result.files! }));
+        }
+      } catch (e) {
+        console.error('Failed to refresh directory:', dirPath, e);
+      }
+    }
+  }, [getFilteredSessions, fetchWorkspaceCwd, directoryContents, expandedFavorites]);
 
   const pollCwdChanges = useCallback(async () => {
     const filteredSessions = getFilteredSessions();
@@ -270,6 +286,38 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
     const interval = setInterval(pollCwdChanges, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [pollCwdChanges]);
+
+  useEffect(() => {
+    const refreshExpandedDirs = async () => {
+      const expandedDirs = Object.keys(directoryContents);
+      const favoriteDirs = Array.from(expandedFavorites);
+      const dirsToRefresh = [...new Set([...expandedDirs, ...favoriteDirs])];
+      
+      if (dirsToRefresh.length === 0) return;
+      
+      for (const dirPath of dirsToRefresh) {
+        try {
+          const result = await window.file.readDir(dirPath);
+          if (result.success && result.files) {
+            setDirectoryContents(prev => {
+              const prevFiles = prev[dirPath];
+              if (!prevFiles) return prev;
+              
+              const prevStr = JSON.stringify(prevFiles.map(f => f.name).sort());
+              const newStr = JSON.stringify(result.files!.map(f => f.name).sort());
+              if (prevStr === newStr) return prev;
+              
+              return { ...prev, [dirPath]: result.files! };
+            });
+          }
+        } catch {
+        }
+      }
+    };
+
+    const interval = setInterval(refreshExpandedDirs, DIR_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [directoryContents, expandedFavorites]);
 
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);

@@ -3,10 +3,19 @@ import type { RemoteControlMessage, RemoteControlApproval, RemoteControlStatus }
 import { formatRelativeTime } from '../utils/timeFormat';
 import './RemoteControlPanel.css';
 
+interface GatewayStatus {
+  connected: boolean;
+  state: string;
+  gatewayURL: string;
+  riID: string;
+  activeSession: { sessionId: string } | null;
+}
+
 const RemoteControlPanel: React.FC = () => {
   const [messages, setMessages] = useState<RemoteControlMessage[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<RemoteControlApproval[]>([]);
   const [status, setStatus] = useState<RemoteControlStatus | null>(null);
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'messages' | 'approvals'>('messages');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -14,6 +23,9 @@ const RemoteControlPanel: React.FC = () => {
   useEffect(() => {
     loadData();
     loadStatus();
+    loadGatewayStatus();
+    const interval = setInterval(loadGatewayStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -71,6 +83,17 @@ const RemoteControlPanel: React.FC = () => {
     }
   };
 
+  const loadGatewayStatus = async () => {
+    try {
+      const result = await window.gateway.getStatus();
+      if (result.success && result.status) {
+        setGatewayStatus(result.status);
+      }
+    } catch (err) {
+      console.error('Failed to load gateway status:', err);
+    }
+  };
+
   const handleClearMessages = async () => {
     try {
       await window.remoteControl.clearMessages();
@@ -125,6 +148,8 @@ const RemoteControlPanel: React.FC = () => {
         return '🎮';
       case 'slack':
         return '💼';
+      case 'gateway':
+        return '🌐';
       default:
         return '🤖';
     }
@@ -143,7 +168,7 @@ const RemoteControlPanel: React.FC = () => {
     }
   };
 
-  const isConnected = status?.discordConnected || status?.slackConnected;
+  const isConnected = status?.discordConnected || status?.slackConnected || gatewayStatus?.state === 'CONNECTED';
 
   return (
     <div className="remote-control-panel">
@@ -164,6 +189,11 @@ const RemoteControlPanel: React.FC = () => {
                 💼 {status.slackConnected ? '●' : '○'}
               </span>
             </>
+          )}
+          {gatewayStatus && (
+            <span className={gatewayStatus.state === 'CONNECTED' ? 'status-online' : 'status-offline'} title={`Gateway: ${gatewayStatus.state}`}>
+              🌐 {gatewayStatus.state === 'CONNECTED' ? '●' : '○'}
+            </span>
           )}
         </div>
       </div>
@@ -197,8 +227,8 @@ const RemoteControlPanel: React.FC = () => {
                 <p>No commands received</p>
                 <p className="remote-hint">
                   {isConnected 
-                    ? 'Commands sent via Discord or Slack will appear here' 
-                    : 'Connect Discord or Slack in Settings → Remote Control'}
+                    ? 'Commands sent via Discord, Slack, or Gateway will appear here' 
+                    : 'Connect Discord, Slack, or Gateway in Settings → Remote Control'}
                 </p>
               </div>
             ) : (

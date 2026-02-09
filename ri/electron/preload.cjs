@@ -173,3 +173,20 @@ contextBridge.exposeInMainWorld('remoteControl', {
   },
 });
 
+contextBridge.exposeInMainWorld('gateway', {
+  getStatus: () => ipcRenderer.invoke('gateway:get-status'),
+  connect: () => ipcRenderer.invoke('gateway:start'),
+  disconnect: () => ipcRenderer.invoke('gateway:stop'),
+  testConnection: () => ipcRenderer.invoke('gateway:test-connection'),
+  onStateChange: (callback) => {
+    const handler = (_event, state) => callback(state);
+    ipcRenderer.on('gateway:state-change', handler);
+    return () => ipcRenderer.removeListener('gateway:state-change', handler);
+  },
+  onMessage: (callback) => {
+    const handler = (_event, msg) => callback(msg);
+    ipcRenderer.on('gateway:message', handler);
+    return () => ipcRenderer.removeListener('gateway:message', handler);
+  },
+});
+

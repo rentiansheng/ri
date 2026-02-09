@@ -182,6 +182,15 @@ export interface Config {
     sortBy: 'name' | 'size' | 'mtime' | 'ctime';
     sortOrder: 'asc' | 'desc';
   };
+  gateway?: {
+    enabled: boolean;
+    url: string;
+    riID: string;
+    pollTimeout: number;
+    heartbeatInterval: number;
+    reconnectInterval: number;
+    maxReconnectDelay: number;
+  };
 }
 
 export interface ViewFilePayload {
@@ -537,6 +546,23 @@ export interface RemoteControlAPI {
   onApprovalRequired: (callback: (approval: RemoteControlApproval) => void) => () => void;
 }
 
+export interface GatewayStatus {
+  connected: boolean;
+  state: string;
+  gatewayURL: string;
+  riID: string;
+  activeSession: { sessionId: string } | null;
+}
+
+export interface GatewayAPI {
+  getStatus: () => Promise<{ success: boolean; status?: GatewayStatus; error?: string }>;
+  connect: () => Promise<{ success: boolean; error?: string }>;
+  disconnect: () => Promise<{ success: boolean; error?: string }>;
+  testConnection: () => Promise<{ success: boolean; error?: string }>;
+  onStateChange: (callback: (state: { oldState: string; newState: string }) => void) => () => void;
+  onMessage: (callback: (msg: { eventID: string; platform: string; text: string }) => void) => () => void;
+}
+
 declare global {
   interface Window {
     terminal: Terminal;
@@ -548,6 +574,7 @@ declare global {
     file: FileAPI;
     opencodePlugin: OpencodePluginAPI;
     remoteControl: RemoteControlAPI;
+    gateway: GatewayAPI;
   }
 }
 
