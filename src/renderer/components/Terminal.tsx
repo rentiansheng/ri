@@ -794,11 +794,6 @@ const Terminal: React.FC<TerminalProps> = ({
       searchVisible: searchVisibleRef.current
     });
     
-    if (searchVisibleRef.current) {
-      closeSearch();
-      return;
-    }
-    
     if (isVisible && hiddenInputRef.current) {
       hiddenInputRef.current.focus({ preventScroll: true });
       console.log(`[Terminal ${sessionId}/${terminalId}] Focused hidden input`);
@@ -830,7 +825,7 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!isActive || !isVisible) return;
     
     const ensureFocus = () => {
-      if (isEditingAnything() || searchVisibleRef.current || isSearchInputFocused()) {
+      if (isEditingAnything() || isSearchInputFocused()) {
         return;
       }
       
@@ -853,17 +848,23 @@ const Terminal: React.FC<TerminalProps> = ({
     const intervalId = setInterval(ensureFocus, 500);
     
     const handleFocusOut = (e: FocusEvent) => {
-      if (isEditingAnything() || searchVisibleRef.current || isSearchInputFocused()) {
+      if (isEditingAnything() || isSearchInputFocused()) {
         return;
       }
       
       if (e.target === hiddenInputRef.current && document.hasFocus()) {
         setTimeout(() => {
-          if (hiddenInputRef.current && !isEditingAnything() && !searchVisibleRef.current && !isSearchInputFocused()) {
+          if (hiddenInputRef.current && !isEditingAnything() && !isSearchInputFocused()) {
             const activeEl = document.activeElement as HTMLElement;
-            if (!activeEl?.closest('.terminal-search-panel')) {
-              hiddenInputRef.current.focus({ preventScroll: true });
+            if (activeEl?.closest('.terminal-search-panel')) {
+              return;
             }
+            // Check if another terminal was recently clicked - don't steal focus
+            const recentlyClickedElement = document.querySelector('[data-recently-clicked="true"]');
+            if (recentlyClickedElement && recentlyClickedElement.getAttribute('data-terminal-id') !== terminalId) {
+              return;
+            }
+            hiddenInputRef.current.focus({ preventScroll: true });
           }
         }, 10);
       }
