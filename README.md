@@ -4,7 +4,7 @@
 
 A modern terminal session manager built with Electron, React, and TypeScript. Organize your development workflows with multiple terminal sessions, command history tracking, workflow automation, and an intuitive unified interface.
 
-![RI Main Interface](./docs/images/main-interface.png)
+![RI Main Interface](./docs/images/session.png)
 
 ## Features
 
@@ -22,6 +22,7 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
 ### Navigation & Views
 - **Icon Sidebar**: Quick access to different views
   - ⚡ Sessions - Manage terminal sessions
+  - 📁 Files - Browse workspace files
   - 📜 History - View command history per session
   - 🔔 Notify - Monitor terminal notifications
   - 🔧 Flow - Workflow automation
@@ -29,7 +30,7 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
 - **Collapsible Navigation Panel**: Context-aware left panel for session/history/flow lists
 - **Master-Detail Layout**: List navigation on left, detailed content on right
 
-![Sidebar Navigation](./docs/images/sidebar-navigation.png)
+ 
 
 ### Terminal Features
 - **Full xterm.js terminal emulation** with auto-fit sizing
@@ -40,7 +41,7 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
 - **AI Tool Detection**: Monitor AI assistant usage (OpenCode, Copilot, Aider, Cursor, Cline)
 - **Safe Deletion**: Context-menu style confirmation for deleting sessions
 
-![Terminal Split View](./docs/images/terminal-split.png)
+![Terminal Split View](./docs/images/session.png)
 
 ### Workflow Automation (Flow)
 
@@ -53,7 +54,7 @@ Automate your development workflows with the Flow feature:
 - **Right-Click Menu**: Quick actions for create, rename, and delete
 - **Collapsible Folders**: Keep your workflow list organized
 
-![Flow List](./docs/images/flow-list.png)
+![Flow List](./docs/images/workflow.png)
 
 **Flow Features:**
 - 📁 **Folder Organization**: Group related workflows together
@@ -62,13 +63,44 @@ Automate your development workflows with the Flow feature:
 - 🔄 **Command Editor**: Full-featured command sequence editor with auto-add
 - 💾 **Auto-Save**: Changes persist automatically
 
-![Flow Editor](./docs/images/flow-editor.png)
+ 
 
 ### History & Logging
 - **Session Logs**: Automatic command history recording per session
 - **Statistics**: Track record count, file size, and last activity time
 - **History Viewer**: Browse past commands with timestamps
 - **Log Management**: Clear individual session history when needed
+
+### File Manager
+
+Workspace file browser with powerful features:
+
+- **Multi-Mode View**: Switch between Current session, Open Tabs, or All sessions
+- **Directory Navigation**: Expand/collapse directories with lazy loading
+- **Favorites**: Pin frequently used directories (persisted across sessions)
+- **Sorting Options**: Sort by name, size, modified time, or created time
+- **Hidden Files Toggle**: Global setting with per-directory override
+- **Context Menu**: Right-click for quick actions
+- **Horizontal Scroll**: Navigate deep directory structures easily
+- **File Details**: View file size and modification time
+
+![File Manager](./docs/images/session-files-edit.png)
+
+**File Manager Features:**
+| Feature | Description |
+|---------|-------------|
+| **View Modes** | Current (active session), Tabs (open tabs), All (all sessions) |
+| **Favorites** | ⭐ Pin directories for quick access, always visible |
+| **Sort By** | Name, Size, Modified time, Created time (ascending/descending) |
+| **Hidden Files** | Global toggle in Settings, per-directory override via right-click |
+| **Directory Tree** | Expand/collapse with file icons based on type |
+| **File Info** | Size and modification time displayed inline |
+
+**Context Menu Actions:**
+- Add/Remove from Favorites
+- Show/Hide Hidden Files (per-directory)
+- Collapse All subdirectories
+- Sort options submenu
 
 ### File Viewer (RIView)
 
@@ -215,6 +247,7 @@ Alternatively, use the provided build script:
 │       │   ├── FlowList.tsx          # Workflow tree navigation
 │       │   ├── FlowEditor.tsx        # Workflow command editor
 │       │   ├── FlowView.tsx          # Flow main view
+│       │   ├── FileManager.tsx       # Workspace file browser
 │       │   ├── RIView.tsx            # VSCode-style file viewer/editor
 │       │   ├── SessionList.tsx       # Session navigation list
 │       │   ├── HistoryList.tsx       # History session list
@@ -306,6 +339,44 @@ The Flow feature lets you define reusable command sequences:
 3. Click a session to view its full history
 4. Statistics show record count and file size
 
+### Using File Manager
+
+The File Manager provides a workspace file browser integrated with your terminal sessions:
+
+#### View Modes
+
+| Mode | Description |
+|------|-------------|
+| **Current** | Show files from the active terminal's working directory |
+| **Tabs** | Show files from all open terminal tabs |
+| **All** | Show files from all sessions |
+
+#### Browsing Files
+
+1. Click on a session header to expand/collapse
+2. Click on a directory path to expand and view contents
+3. Click on a file to open it in RIView editor
+4. Use the refresh button (🔄) to update directory listings
+
+#### Using Favorites
+
+1. Right-click on any directory
+2. Select "⭐ Add to Favorites"
+3. Favorites appear at the top, always visible
+4. Remove via right-click → "✖ Remove from Favorites"
+
+#### Sorting and Filtering
+
+Right-click to access sorting options:
+- **Sort by**: Name, Size, Modified time, Created time
+- **Order**: Ascending or Descending
+- **Hidden Files**: Toggle visibility (global or per-directory)
+
+#### Settings
+
+Configure default behavior in Settings → Files View:
+- **Show Hidden Files**: Default visibility for files starting with `.`
+
 ### Notifications
 
 1. Click the 🔔 Notify icon in the sidebar
@@ -321,7 +392,10 @@ Access settings via the ⚙ icon:
 |-----|---------|
 | **Notification** | Desktop alerts, themes, external integrations |
 | **OpenCode** | Auto-start, plugin management |
-| **Terminal** | Font family, colors, cursor, scrollback |
+| **Remote Control** | Discord/Slack bot integration for remote terminal control |
+| **Terminal** | Font family, colors, cursor, scrollback (supports k unit: 1k, 1.5k, 10k) |
+| **Editor** | Auto-save settings |
+| **Files View** | Show/hide hidden files globally |
 | **Appearance** | Theme, layout options |
 | **Advanced** | Dev tools, logging, performance |
 

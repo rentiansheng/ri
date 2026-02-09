@@ -80,6 +80,10 @@
   padding: 0.5rem 0;
 }
 
+.fm-workspace-list-inner {
+  min-width: max-content;
+}
+
 .fm-empty {
   display: flex;
   align-items: center;
@@ -125,8 +129,6 @@
   font-size: 0.85rem;
   color: #d4d4d4;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .fm-session-count {
@@ -184,8 +186,6 @@
   font-size: 0.8rem;
   color: #4fc3f7;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-family: 'SF Mono', Menlo, Monaco, monospace;
 }
 
@@ -223,8 +223,6 @@
   font-size: 0.8rem;
   color: #d4d4d4;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .fm-file-entry.directory .fm-file-name {

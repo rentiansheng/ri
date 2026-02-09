@@ -635,6 +635,7 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
       </div>
 
       <div className="fm-workspace-list">
+        <div className="fm-workspace-list-inner">
         {renderFavorites()}
         
         {Object.keys(groupedWorkspaces).length === 0 && favoriteDirectories.length === 0 ? (
@@ -690,6 +691,7 @@ const FileManager: React.FC<FileManagerProps> = ({ onOpenFile }) => {
             </div>
           ))
         )}
+        </div>
       </div>
       
       {renderContextMenu()}

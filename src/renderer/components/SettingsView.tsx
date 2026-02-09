@@ -6,7 +6,7 @@ import TerminalSettings from './Settings/TerminalSettings';
 import RemoteControlSettings from './Settings/RemoteControlSettings';
 import './SettingsView.css';
 
-type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode' | 'remoteControl' | 'editor';
+type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode' | 'remoteControl' | 'editor' | 'filesView';
 
 interface NotificationSettings {
   enabled: boolean;
@@ -92,6 +92,9 @@ const SettingsView: React.FC = () => {
     autoSave: false,
     autoSaveDelay: 2,
   });
+  const [filesViewSettings, setFilesViewSettings] = useState({
+    showHidden: false,
+  });
 
   const configStore = useConfigStore();
 
@@ -134,6 +137,13 @@ const SettingsView: React.FC = () => {
           autoSaveDelay: loadedConfig.editor.autoSaveDelay ?? 2,
         });
       }
+
+      // Load files view settings
+      if (loadedConfig.fileManager) {
+        setFilesViewSettings({
+          showHidden: loadedConfig.fileManager.showHidden ?? false,
+        });
+      }
     } catch (error) {
       console.error('Failed to load config:', error);
       showMessage('error', 'Failed to load configuration');
@@ -152,6 +162,10 @@ const SettingsView: React.FC = () => {
         ...config,
         notification: notificationSettings,
         editor: editorSettings,
+        fileManager: {
+          ...config?.fileManager,
+          showHidden: filesViewSettings.showHidden,
+        },
       };
       
       const result = await window.config.update(updatedConfig);
@@ -712,6 +726,35 @@ const SettingsView: React.FC = () => {
     );
   };
 
+  const renderFilesViewSettings = () => {
+    return (
+      <div className="settings-section-content">
+        <div className="settings-group">
+          <h3>显示设置</h3>
+          
+          <div className="settings-item">
+            <div className="settings-item-label">
+              <label>显示隐藏文件</label>
+              <span className="settings-item-description">
+                默认显示以 . 开头的隐藏文件（右键菜单可临时切换当前目录）
+              </span>
+            </div>
+            <div className="settings-item-control">
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={filesViewSettings.showHidden}
+                  onChange={(e) => setFilesViewSettings(prev => ({ ...prev, showHidden: e.target.checked }))}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'notification':
@@ -724,6 +767,8 @@ const SettingsView: React.FC = () => {
         return <TerminalSettings />;
       case 'editor':
         return renderEditorSettings();
+      case 'filesView':
+        return renderFilesViewSettings();
       case 'appearance':
         return <div className="settings-section-content">Appearance settings coming soon...</div>;
       case 'advanced':
@@ -746,6 +791,8 @@ const SettingsView: React.FC = () => {
         return 'Terminal';
       case 'editor':
         return 'Editor';
+      case 'filesView':
+        return 'Files View';
       case 'appearance':
         return 'Appearance';
       case 'advanced':
@@ -824,6 +871,14 @@ const SettingsView: React.FC = () => {
           >
             <span className="settings-nav-icon">📝</span>
             <span className="settings-nav-label">Editor</span>
+          </button>
+          <button
+            className={`settings-nav-item ${activeSection === 'filesView' ? 'active' : ''}`}
+            onClick={() => setActiveSection('filesView')}
+            data-testid="settings-tab-files-view"
+          >
+            <span className="settings-nav-icon">📁</span>
+            <span className="settings-nav-label">Files View</span>
           </button>
           <button
             className={`settings-nav-item ${activeSection === 'appearance' ? 'active' : ''}`}

@@ -132,7 +132,40 @@ const TerminalSettings: React.FC = () => {
   const [cursorStyle, setCursorStyle] = useState<'block' | 'underline' | 'bar'>('block');
   const [cursorBlink, setCursorBlink] = useState(true);
   const [scrollback, setScrollback] = useState(1000);
+  const [scrollbackDisplay, setScrollbackDisplay] = useState('1k');
   const [selectedTheme, setSelectedTheme] = useState('Gruvbox Dark');
+
+  const toDisplayValue = (value: number): string => {
+    const k = value / 1000;
+    return k === Math.floor(k) ? `${k}k` : `${k.toFixed(1)}k`;
+  };
+
+  const parseDisplayValue = (display: string): number | null => {
+    const trimmed = display.trim().toLowerCase();
+    const match = trimmed.match(/^(\d+(?:\.\d)?)k?$/);
+    if (!match) return null;
+    
+    const num = parseFloat(match[1]);
+    const hasKSuffix = trimmed.endsWith('k');
+    const isDecimal = match[1].includes('.');
+    
+    if (hasKSuffix || isDecimal) {
+      return Math.round(num * 1000);
+    }
+    return Math.round(num);
+  };
+
+  const handleScrollbackChange = (display: string) => {
+    setScrollbackDisplay(display);
+    const value = parseDisplayValue(display);
+    if (value !== null && value >= 100 && value <= 100000) {
+      setScrollback(value);
+    }
+  };
+
+  const handleScrollbackBlur = () => {
+    setScrollbackDisplay(toDisplayValue(scrollback));
+  };
 
   useEffect(() => {
     loadConfig();
@@ -147,7 +180,9 @@ const TerminalSettings: React.FC = () => {
         setFontFamily(loadedConfig.terminal.fontFamily || 'Menlo, Monaco, "Courier New", monospace');
         setCursorStyle(loadedConfig.terminal.cursorStyle || 'block');
         setCursorBlink(loadedConfig.terminal.cursorBlink !== false);
-        setScrollback(loadedConfig.terminal.scrollback || 1000);
+        const sb = loadedConfig.terminal.scrollback || 1000;
+        setScrollback(sb);
+        setScrollbackDisplay(toDisplayValue(sb));
         setSelectedTheme(loadedConfig.terminal.theme?.name || 'Gruvbox Dark');
       }
     } catch (error) {
@@ -338,17 +373,16 @@ const TerminalSettings: React.FC = () => {
         <div className="settings-item">
           <div className="settings-item-label">
             <label>回滚缓冲区</label>
-            <span className="settings-item-description">保留的历史行数</span>
+            <span className="settings-item-description">保留的历史行数 (如: 1k, 1.5k, 10k)</span>
           </div>
           <div className="settings-item-control">
             <input
-              type="number"
-              min="100"
-              max="50000"
-              step="100"
-              value={scrollback}
-              onChange={(e) => setScrollback(parseInt(e.target.value))}
+              type="text"
+              value={scrollbackDisplay}
+              onChange={(e) => handleScrollbackChange(e.target.value)}
+              onBlur={handleScrollbackBlur}
               className="settings-input-number"
+              placeholder="1k"
             />
           </div>
         </div>

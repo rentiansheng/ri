@@ -29,11 +29,21 @@ This directory should contain the following screenshots for the README documenta
 |----------|-------------|----------------|
 | `create-session.png` | Session creation | Click + button in session list |
 
+### File Manager Screenshots
+
+| Filename | Description | How to Capture |
+|----------|-------------|----------------|
+| `file-manager.png` | File manager with expanded directories | Navigate to Sessions view, expand a session, click on working directory |
+| `file-manager-context.png` | File manager context menu | Right-click on a directory in file manager |
+| `file-manager-favorites.png` | File manager with favorites section | Add directories to favorites |
+
 ### Settings Screenshots
 
 | Filename | Description | How to Capture |
 |----------|-------------|----------------|
 | `settings-view.png` | Settings page | Click settings icon, show tabs |
+| `settings-files-view.png` | Files View settings | Navigate to Settings → Files View |
+| `settings-terminal.png` | Terminal settings with scrollback | Navigate to Settings → Terminal |
 
 ## Screenshot Guidelines
 

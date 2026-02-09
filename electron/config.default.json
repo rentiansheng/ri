@@ -116,5 +116,11 @@
     "startupDelay": 2000,
     "autoRestart": false,
     "logLevel": "INFO"
+  },
+  "fileManager": {
+    "favorites": [],
+    "showHidden": false,
+    "sortBy": "name",
+    "sortOrder": "asc"
   }
 }
