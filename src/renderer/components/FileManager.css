@@ -361,3 +361,56 @@
 .fm-context-submenu:hover .fm-context-submenu-content {
   display: block;
 }
+
+.fm-new-item-row {
+  display: flex;
+  align-items: center;
+  padding: 0.3rem 0.5rem;
+  gap: 0.35rem;
+}
+
+.fm-new-item-input {
+  flex: 1;
+  background: #1e1e1e;
+  border: 1px solid #007acc;
+  border-radius: 3px;
+  color: #d4d4d4;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.fm-new-item-input:focus {
+  border-color: #3794ff;
+  box-shadow: 0 0 0 1px #3794ff33;
+}
+
+.fm-new-item-input::placeholder {
+  color: #666;
+}
+
+.fm-file-entry.dragging {
+  opacity: 0.4;
+}
+
+.fm-file-entry.drop-target {
+  background: #264f78;
+  border-radius: 3px;
+}
+
+.fm-file-entry.directory[draggable="true"] {
+  cursor: grab;
+}
+
+.fm-file-entry.directory[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.fm-file-entry.file[draggable="true"] {
+  cursor: grab;
+}
+
+.fm-file-entry.file[draggable="true"]:active {
+  cursor: grabbing;
+}

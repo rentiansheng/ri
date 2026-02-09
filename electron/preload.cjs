@@ -121,6 +121,10 @@ contextBridge.exposeInMainWorld('file', {
   readDir: (dirPath) => ipcRenderer.invoke('file:read-dir', dirPath),
   openDialog: (options) => ipcRenderer.invoke('file:open-dialog', options),
   saveDialog: (options) => ipcRenderer.invoke('file:save-dialog', options),
+  mkdir: (dirPath) => ipcRenderer.invoke('file:mkdir', dirPath),
+  move: (srcPath, destPath) => ipcRenderer.invoke('file:move', srcPath, destPath),
+  delete: (targetPath) => ipcRenderer.invoke('file:delete', targetPath),
+  create: (filePath, content) => ipcRenderer.invoke('file:create', filePath, content),
 });
 
 contextBridge.exposeInMainWorld('opencodePlugin', {
