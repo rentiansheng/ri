@@ -93,6 +93,59 @@ function App() {
     loadConfigs();
   }, [loadConfig, setTerminalConfig]);
   
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const key = e.key;
+      const code = e.code;
+      const store = useTerminalStore.getState();
+      
+      // Check if current tab is a terminal with multiple splits
+      const activeTab = store.tabs.find(t => t.id === store.activeTabId);
+      const isTerminalTab = activeTab?.type === 'terminal' && activeTab.sessionId;
+      const session = isTerminalTab ? store.sessions.find(s => s.id === activeTab.sessionId) : null;
+      const hasMultipleTerminals = session && session.terminalIds.length > 1;
+      
+      // Ctrl+1-9: switch terminals within session (when in terminal tab with splits)
+      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const digitMatch = code.match(/^Digit([1-9])$/);
+        if (digitMatch && isTerminalTab && hasMultipleTerminals) {
+          e.preventDefault();
+          const terminalIndex = parseInt(digitMatch[1]) - 1;
+          if (terminalIndex < session.terminalIds.length) {
+            store.setSessionActiveTerminal(activeTab.sessionId!, session.terminalIds[terminalIndex]);
+          }
+          return;
+        }
+        
+        // Ctrl+Tab: cycle through terminals within session
+        if (code === 'Tab' && isTerminalTab && hasMultipleTerminals) {
+          e.preventDefault();
+          const currentActiveTerminal = store.getSessionActiveTerminal(activeTab.sessionId!);
+          const currentIndex = currentActiveTerminal 
+            ? session.terminalIds.indexOf(currentActiveTerminal) 
+            : -1;
+          const nextIndex = (currentIndex + 1) % session.terminalIds.length;
+          store.setSessionActiveTerminal(activeTab.sessionId!, session.terminalIds[nextIndex]);
+          return;
+        }
+      }
+      
+      // Cmd+1-9 (Mac) or Alt+1-9 (Windows): switch to tab by index
+      if ((e.metaKey || e.altKey) && !e.ctrlKey && !e.shiftKey && key >= '1' && key <= '9') {
+        e.preventDefault();
+        const tabIndex = parseInt(key) - 1;
+        if (tabIndex < store.tabs.length) {
+          store.setActiveTab(store.tabs[tabIndex].id);
+        }
+        return;
+      }
+    };
+    
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+  
   // 监听配置变化
   useEffect(() => {
     const cleanup = window.config.onChange((newConfig) => {

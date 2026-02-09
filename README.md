@@ -40,6 +40,9 @@ A modern terminal session manager built with Electron, React, and TypeScript. Or
 - **Auto-naming**: First command automatically names the session
 - **AI Tool Detection**: Monitor AI assistant usage (OpenCode, Copilot, Aider, Cursor, Cline)
 - **Safe Deletion**: Context-menu style confirmation for deleting sessions
+- **IME Support**: Proper handling of input method editors (Chinese, Japanese, etc.)
+- **Smart Backspace**: Backspace respects IME composition state
+- **Click-to-Activate**: Click anywhere on split terminal (including text content) to activate it
 
 ![Terminal Split View](./docs/images/session.png)
 
@@ -392,7 +395,7 @@ Access settings via the ⚙ icon:
 |-----|---------|
 | **Notification** | Desktop alerts, themes, external integrations |
 | **OpenCode** | Auto-start, plugin management |
-| **Remote Control** | Discord/Slack bot integration for remote terminal control |
+| **Remote Control** | Discord/Slack/Gateway bot integration for remote terminal control |
 | **Terminal** | Font family, colors, cursor, scrollback (supports k unit: 1k, 1.5k, 10k) |
 | **Editor** | Auto-save settings |
 | **Files View** | Show/hide hidden files globally |
@@ -411,6 +414,9 @@ Access settings via the ⚙ icon:
 | `Ctrl+Shift+Tab` | Switch to previous tab |
 | `Ctrl+S` / `Cmd+S` | Save (in editors) |
 | `Ctrl+,` / `Cmd+,` | Open settings |
+| `Cmd+1-9` / `Ctrl+1-9` | Switch to tab by index |
+| `Cmd+Option+1-9` / `Ctrl+Alt+1-9` | Switch to terminal by index (within split session) |
+| `Cmd+Option+Tab` / `Ctrl+Alt+Tab` | Cycle through terminals (within split session) |
 
 ## Architecture
 

@@ -230,8 +230,9 @@ const Terminal: React.FC<TerminalProps> = ({
         return;
       }
       
-      // Backspace
+      // Backspace - skip if IME is composing
       if (key === 'Backspace') {
+        if (isComposingRef.current) return;
         e.preventDefault();
         sendToPty('\x7f');
         return;
@@ -541,8 +542,6 @@ const Terminal: React.FC<TerminalProps> = ({
 
     const unsubscribeExit = window.terminal.onExit((payload: { id: string }) => {
       if (payload.id === terminalId && xterm) {
-        xterm.write('\r\n[Process completed]\r\n');
-        
         // 延迟检查，确保状态已更新
         setTimeout(() => {
           const currentSession = useTerminalStore.getState().sessions.find(s => s.id === sessionId);
@@ -983,6 +982,7 @@ const Terminal: React.FC<TerminalProps> = ({
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
+      console.log('[Terminal] handlePaste called, text length:', text?.length);
       if (text) {
         sendToPty(text);
       }
@@ -991,6 +991,21 @@ const Terminal: React.FC<TerminalProps> = ({
     }
     setContextMenu(null);
   };
+
+  const handleWrapperPaste = useCallback(async (e: React.ClipboardEvent) => {
+    if (!isActive || !isVisible) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const text = e.clipboardData?.getData('text') || await navigator.clipboard.readText();
+      console.log('[Terminal] Wrapper paste, text length:', text?.length);
+      if (text) {
+        sendToPty(text);
+      }
+    } catch (err) {
+      console.error('[Terminal] Wrapper paste failed:', err);
+    }
+  }, [isActive, isVisible, sendToPty]);
 
   const handleClear = () => {
     if (xterm) xterm.clear();
@@ -1053,6 +1068,8 @@ const Terminal: React.FC<TerminalProps> = ({
         visibility: isVisible ? 'visible' : 'hidden',
         pointerEvents: isVisible ? 'auto' : 'none',
       }}
+      onPaste={handleWrapperPaste}
+      tabIndex={-1}
     >
       <div 
         ref={containerRef} 

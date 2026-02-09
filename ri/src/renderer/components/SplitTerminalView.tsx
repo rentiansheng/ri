@@ -28,6 +28,7 @@ const SplitTerminalView: React.FC<SplitTerminalViewProps> = ({
   const setSessionActiveTerminal = useTerminalStore((state) => state.setSessionActiveTerminal);
   
   const splitLayout = useTerminalStore((state) => state.sessionLayouts[sessionId] || null);
+  const storeActiveTerminal = useTerminalStore((state) => state.sessionActiveTerminals[sessionId]);
   const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() => getSessionActiveTerminal(sessionId) || null);
   const isSplittingRef = useRef<boolean>(false);
   const dragStateRef = useRef<{
@@ -63,6 +64,13 @@ const SplitTerminalView: React.FC<SplitTerminalViewProps> = ({
       }
     }
   }, [isActive, sessionId, ensureSessionHasTerminal, activeTerminalId, session]);
+
+  // Sync with store's activeTerminal (for keyboard shortcuts)
+  useEffect(() => {
+    if (storeActiveTerminal && storeActiveTerminal !== activeTerminalId) {
+      setActiveTerminalId(storeActiveTerminal);
+    }
+  }, [storeActiveTerminal]);
 
 
 
@@ -288,53 +296,67 @@ const SplitTerminalView: React.FC<SplitTerminalViewProps> = ({
 
   const renderSplitPane = (pane: SplitPane, containerStyle: React.CSSProperties = {}): React.ReactNode => {
     if (pane.terminalId) {
+      const isThisTerminalActive = activeTerminalId === pane.terminalId;
+      
+      const handleTerminalActivate = (e: React.MouseEvent) => {
+        if (!pane.terminalId) return;
+        
+        // Prevent the event from propagating to avoid double-handling
+        e.stopPropagation();
+        
+        document.querySelectorAll('[data-recently-clicked="true"]').forEach(el => {
+          el.removeAttribute('data-recently-clicked');
+        });
+        
+        const currentElement = document.querySelector(`[data-terminal-id="${pane.terminalId}"]`);
+        if (currentElement) {
+          currentElement.setAttribute('data-recently-clicked', 'true');
+          setTimeout(() => {
+            currentElement.removeAttribute('data-recently-clicked');
+          }, 1000);
+        }
+        
+        setActiveTerminalId(pane.terminalId);
+        setSessionActiveTerminal(sessionId, pane.terminalId);
+        
+        const focusHiddenInput = () => {
+          const terminalElement = document.querySelector(`[data-terminal-id="${pane.terminalId}"]`);
+          const hiddenInput = terminalElement?.querySelector('textarea');
+          if (hiddenInput) {
+            hiddenInput.focus({ preventScroll: true });
+            return true;
+          }
+          return false;
+        };
+        
+        if (!focusHiddenInput()) {
+          setTimeout(() => {
+            if (!focusHiddenInput()) {
+              setTimeout(focusHiddenInput, 100);
+            }
+          }, 0);
+        }
+      };
+
       return (
         <div 
           key={pane.id || pane.terminalId}
-          className={`split-pane-terminal ${activeTerminalId === pane.terminalId ? 'active' : ''}`}
+          className={`split-pane-terminal ${isThisTerminalActive ? 'active' : ''}`}
           style={containerStyle}
-          onClick={() => {
-            if (pane.terminalId) {
-              document.querySelectorAll('[data-recently-clicked="true"]').forEach(el => {
-                el.removeAttribute('data-recently-clicked');
-              });
-              
-              const currentElement = document.querySelector(`[data-terminal-id="${pane.terminalId}"]`);
-              if (currentElement) {
-                currentElement.setAttribute('data-recently-clicked', 'true');
-                setTimeout(() => {
-                  currentElement.removeAttribute('data-recently-clicked');
-                }, 1000);
-              }
-              
-              setActiveTerminalId(pane.terminalId);
-              setSessionActiveTerminal(sessionId, pane.terminalId);
-              
-              const focusHiddenInput = () => {
-                const terminalElement = document.querySelector(`[data-terminal-id="${pane.terminalId}"]`);
-                const hiddenInput = terminalElement?.querySelector('textarea');
-                if (hiddenInput) {
-                  hiddenInput.focus({ preventScroll: true });
-                  return true;
-                }
-                return false;
-              };
-              
-              if (!focusHiddenInput()) {
-                setTimeout(() => {
-                  if (!focusHiddenInput()) {
-                    setTimeout(focusHiddenInput, 100);
-                  }
-                }, 0);
-              }
-            }
-          }}
         >
+          {/* Transparent overlay to capture clicks when terminal is not active */}
+          {!isThisTerminalActive && (
+            <div
+              className="terminal-activation-overlay"
+              onMouseDown={handleTerminalActivate}
+              onClick={handleTerminalActivate}
+            />
+          )}
           <Terminal
             sessionId={sessionId}
             terminalId={pane.terminalId}
             sessionName={sessionName}
-            isActive={isActive && activeTerminalId === pane.terminalId}
+            isActive={isActive && isThisTerminalActive}
             isVisible={isVisible}
             useRelativePosition={session ? session.terminalIds.length > 1 : false}
           />

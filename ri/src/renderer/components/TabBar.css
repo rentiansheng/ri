@@ -97,6 +97,7 @@
   margin-right: 4px;
   font-size: 0.8rem;
   flex-shrink: 0;
+  pointer-events: none;
 }
 
 /* Dragging state */
@@ -156,6 +157,7 @@
   white-space: nowrap;
   font-size: 13px;
   line-height: 35px;
+  pointer-events: none;
 }
 
 .tab-rename-input {
@@ -241,6 +243,7 @@
   flex-shrink: 0;
   transition: all 0.2s ease;
   animation: pulse-dot 2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .tab-notification-dot.error {

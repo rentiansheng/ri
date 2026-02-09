@@ -67,6 +67,13 @@
   transition: border-color 0.2s ease;
 }
 
+.terminal-activation-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: text;
+}
+
 .split-pane-terminal.active {
   border-color: #007acc;
 }
