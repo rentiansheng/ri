@@ -278,6 +278,92 @@
   z-index: 2;
 }
 
+/* Terminal Search Panel - VSCode Style */
+.terminal-search-panel {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  width: 320px;
+  background: #252526;
+  border: 1px solid #454545;
+  border-top: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 6px 8px;
+  z-index: 1000;
+  border-radius: 0 0 6px 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.terminal-search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.terminal-search-input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+  outline: none;
+  min-width: 0;
+}
+
+.terminal-search-input:focus {
+  border-color: #007acc;
+}
+
+.terminal-search-input::placeholder {
+  color: #888;
+}
+
+.terminal-search-count {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: center;
+}
+
+.terminal-search-actions {
+  display: flex;
+  gap: 1px;
+}
+
+.terminal-search-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cccccc;
+  padding: 3px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  transition: all 0.1s;
+  font-size: 12px;
+}
+
+.terminal-search-btn:hover {
+  background: #3e3e3e;
+}
+
+.terminal-search-btn.close {
+  color: #888;
+}
+
+.terminal-search-btn.close:hover {
+  color: #fff;
+  background: #5a5a5a;
+}
+
 /* History area (full width when active) */
 .history-area {
   position: absolute;

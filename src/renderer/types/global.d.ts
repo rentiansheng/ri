@@ -10,6 +10,7 @@ export interface ProcessInfo {
     comm: string;
     state: string;
   }>;
+  cwd: string | null;
 }
 
 export interface SessionLogRecord {
@@ -33,6 +34,7 @@ export interface Flow {
   description?: string;
   icon?: string;
   path?: string;
+  order?: number;
   mode: 'cron' | 'template';
   commands: string[];
   cwd?: string;
@@ -155,6 +157,37 @@ export interface Config {
     autoRestart: boolean;
     logLevel: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   };
+  editor?: {
+    autoSave: boolean;
+    autoSaveDelay: number;
+  };
+  remoteControl?: {
+    enabled: boolean;
+    requireApproval?: boolean;
+    discord?: {
+      enabled: boolean;
+      botToken: string;
+    };
+    slack?: {
+      enabled: boolean;
+      botToken: string;
+      appToken: string;
+    };
+    allowedUsers?: string[];
+    allowedChannels?: string[];
+  };
+  fileManager?: {
+    favorites: string[];
+    showHidden: boolean;
+    sortBy: 'name' | 'size' | 'mtime' | 'ctime';
+    sortOrder: 'asc' | 'desc';
+  };
+}
+
+export interface ViewFilePayload {
+  sessionId?: string;
+  terminalId: string;
+  filePath: string;
 }
 
 export interface Terminal {
@@ -167,6 +200,7 @@ export interface Terminal {
   getProcessInfo: (payload: { id: string }) => Promise<ProcessInfo | null>;
   onData: (handler: (payload: { id: string; data: string }) => void) => () => void;
   onExit: (handler: (payload: { id: string }) => void) => () => void;
+  onViewFile: (handler: (payload: ViewFilePayload) => void) => () => void;
 }
 
 export interface SessionLog {
@@ -275,6 +309,10 @@ export interface FileEntry {
   isFile: boolean;
   isDirectory: boolean;
   path: string;
+  size?: number;
+  mtime?: number;
+  ctime?: number;
+  isHidden?: boolean;
 }
 
 export interface FileAPI {
@@ -323,7 +361,6 @@ export interface OpencodePluginAPI {
     };
     error?: string;
   }>;
-  // New methods for multi-path detection
   detectAll: () => Promise<{ 
     success: boolean; 
     installations: OpencodeInstallation[];
@@ -353,7 +390,6 @@ export interface OpencodePluginAPI {
     success: boolean; 
     error?: string;
   }>;
-  // Configuration management methods
   checkConfig: () => Promise<{ 
     success: boolean; 
     enabled: boolean;
@@ -377,6 +413,126 @@ export interface OpencodePluginAPI {
   }>;
 }
 
+export interface RemoteControlStatus {
+  discordConnected: boolean;
+  slackConnected: boolean;
+  activeSession: {
+    sessionId: string;
+    platform: string;
+  } | null;
+}
+
+export interface RemoteControlTestResult {
+  timestamp: string;
+  tests: Array<{
+    name: string;
+    success: boolean;
+    data?: Record<string, unknown>;
+    error?: string;
+  }>;
+}
+
+export interface RemoteControlConnectionResult {
+  platform: string;
+  success: boolean;
+  message: string;
+  details?: {
+    username?: string;
+    tag?: string;
+    id?: string;
+    guilds?: number;
+    guildNames?: string[];
+    user?: string;
+    userId?: string;
+    team?: string;
+    teamId?: string;
+    botId?: string;
+  };
+}
+
+export interface RemoteControlNotificationResult {
+  platform: string;
+  success: boolean;
+  message: string;
+  channelId?: string;
+  channelName?: string;
+  ts?: string;
+}
+
+export interface RemoteControlConfigError {
+  field: string;
+  message: string;
+}
+
+export interface RemoteControlValidationResult {
+  discord: {
+    valid: boolean;
+    skipped?: boolean;
+    errors: RemoteControlConfigError[];
+    details: {
+      username?: string;
+      tag?: string;
+      id?: string;
+      guilds?: number;
+      guildNames?: string[];
+    } | null;
+  };
+  slack: {
+    valid: boolean;
+    skipped?: boolean;
+    errors: RemoteControlConfigError[];
+    details: {
+      user?: string;
+      userId?: string;
+      team?: string;
+      teamId?: string;
+      botId?: string;
+    } | null;
+  };
+  warnings: RemoteControlConfigError[];
+}
+
+export interface RemoteControlMessage {
+  id: string;
+  type: 'incoming' | 'outgoing' | 'executed' | 'approved' | 'rejected';
+  platform: string;
+  user: string;
+  content: string;
+  timestamp: string;
+  userId?: string;
+  channelId?: string;
+  guildId?: string;
+}
+
+export interface RemoteControlApproval {
+  id: string;
+  command: string;
+  commandType: string;
+  args: Record<string, unknown>;
+  platform: string;
+  timestamp: string;
+  user: string;
+}
+
+export interface RemoteControlAPI {
+  getStatus: () => Promise<{ success: boolean; status?: RemoteControlStatus; error?: string }>;
+  initialize: () => Promise<{ success: boolean; error?: string }>;
+  cleanup: () => Promise<{ success: boolean; error?: string }>;
+  test: (testType?: string) => Promise<{ success: boolean; results?: RemoteControlTestResult; error?: string }>;
+  simulate: (command: string) => Promise<{ success: boolean; response: string }>;
+  testConnection: (platform: string) => Promise<RemoteControlConnectionResult>;
+  sendTestNotification: (platform: string, channelId?: string) => Promise<RemoteControlNotificationResult>;
+  validateConfig: () => Promise<{ success: boolean; result?: RemoteControlValidationResult; error?: string }>;
+  getMessages: (limit?: number) => Promise<{ success: boolean; messages?: RemoteControlMessage[]; error?: string }>;
+  clearMessages: () => Promise<{ success: boolean; error?: string }>;
+  sendMessage: (platform: string, message: string, channelId?: string) => Promise<{ success: boolean; error?: string }>;
+  getPendingApprovals: () => Promise<{ success: boolean; approvals?: RemoteControlApproval[]; error?: string }>;
+  approveCommand: (approvalId: string) => Promise<{ success: boolean; error?: string }>;
+  rejectCommand: (approvalId: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
+  onMessage: (callback: (msg: RemoteControlMessage) => void) => () => void;
+  onApprovalRequired: (callback: (approval: RemoteControlApproval) => void) => () => void;
+}
+
 declare global {
   interface Window {
     terminal: Terminal;
@@ -387,6 +543,7 @@ declare global {
     flow: FlowAPI;
     file: FileAPI;
     opencodePlugin: OpencodePluginAPI;
+    remoteControl: RemoteControlAPI;
   }
 }
 

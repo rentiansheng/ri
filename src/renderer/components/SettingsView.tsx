@@ -3,9 +3,10 @@ import { useConfigStore } from '../store/configStore';
 import { NotificationTheme, themes } from '../utils/notificationThemes';
 import OpencodeSettings from './Settings/OpencodeSettings';
 import TerminalSettings from './Settings/TerminalSettings';
+import RemoteControlSettings from './Settings/RemoteControlSettings';
 import './SettingsView.css';
 
-type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode';
+type SettingsSection = 'notification' | 'terminal' | 'appearance' | 'advanced' | 'opencode' | 'remoteControl' | 'editor' | 'filesView';
 
 interface NotificationSettings {
   enabled: boolean;
@@ -87,6 +88,13 @@ const SettingsView: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<NotificationTheme>('vscode');
+  const [editorSettings, setEditorSettings] = useState({
+    autoSave: false,
+    autoSaveDelay: 2,
+  });
+  const [filesViewSettings, setFilesViewSettings] = useState({
+    showHidden: false,
+  });
 
   const configStore = useConfigStore();
 
@@ -121,6 +129,21 @@ const SettingsView: React.FC = () => {
         setNotificationSettings(defaultSettings);
         setSelectedTheme('vscode');
       }
+
+      // Load editor settings
+      if (loadedConfig.editor) {
+        setEditorSettings({
+          autoSave: loadedConfig.editor.autoSave ?? false,
+          autoSaveDelay: loadedConfig.editor.autoSaveDelay ?? 2,
+        });
+      }
+
+      // Load files view settings
+      if (loadedConfig.fileManager) {
+        setFilesViewSettings({
+          showHidden: loadedConfig.fileManager.showHidden ?? false,
+        });
+      }
     } catch (error) {
       console.error('Failed to load config:', error);
       showMessage('error', 'Failed to load configuration');
@@ -138,6 +161,11 @@ const SettingsView: React.FC = () => {
       const updatedConfig = {
         ...config,
         notification: notificationSettings,
+        editor: editorSettings,
+        fileManager: {
+          ...config?.fileManager,
+          showHidden: filesViewSettings.showHidden,
+        },
       };
       
       const result = await window.config.update(updatedConfig);
@@ -647,14 +675,100 @@ const SettingsView: React.FC = () => {
     );
   };
 
+  const renderEditorSettings = () => {
+    return (
+      <div className="settings-section-content">
+        <div className="settings-group">
+          <h3>Auto Save</h3>
+          
+          <div className="settings-item">
+            <div className="settings-item-label">
+              <label>Enable Auto Save</label>
+              <span className="settings-item-description">
+                Automatically save files after changes
+              </span>
+            </div>
+            <div className="settings-item-control">
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={editorSettings.autoSave}
+                  onChange={(e) => setEditorSettings(prev => ({ ...prev, autoSave: e.target.checked }))}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-item">
+            <div className="settings-item-label">
+              <label>Auto Save Delay</label>
+              <span className="settings-item-description">
+                Delay in seconds before auto-saving
+              </span>
+            </div>
+            <div className="settings-item-control">
+              <input
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value={editorSettings.autoSaveDelay}
+                onChange={(e) => setEditorSettings(prev => ({ ...prev, autoSaveDelay: parseInt(e.target.value) || 2 }))}
+                className="settings-input-number"
+                disabled={!editorSettings.autoSave}
+              />
+              <span style={{ marginLeft: 8, color: '#888', fontSize: 12 }}>s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFilesViewSettings = () => {
+    return (
+      <div className="settings-section-content">
+        <div className="settings-group">
+          <h3>显示设置</h3>
+          
+          <div className="settings-item">
+            <div className="settings-item-label">
+              <label>显示隐藏文件</label>
+              <span className="settings-item-description">
+                默认显示以 . 开头的隐藏文件（右键菜单可临时切换当前目录）
+              </span>
+            </div>
+            <div className="settings-item-control">
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={filesViewSettings.showHidden}
+                  onChange={(e) => setFilesViewSettings(prev => ({ ...prev, showHidden: e.target.checked }))}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'notification':
         return renderNotificationSettings();
       case 'opencode':
         return <OpencodeSettings />;
+      case 'remoteControl':
+        return <RemoteControlSettings />;
       case 'terminal':
         return <TerminalSettings />;
+      case 'editor':
+        return renderEditorSettings();
+      case 'filesView':
+        return renderFilesViewSettings();
       case 'appearance':
         return <div className="settings-section-content">Appearance settings coming soon...</div>;
       case 'advanced':
@@ -671,8 +785,14 @@ const SettingsView: React.FC = () => {
         return 'Notifications';
       case 'opencode':
         return 'OpenCode';
+      case 'remoteControl':
+        return 'Remote Control';
       case 'terminal':
         return 'Terminal';
+      case 'editor':
+        return 'Editor';
+      case 'filesView':
+        return 'Files View';
       case 'appearance':
         return 'Appearance';
       case 'advanced':
@@ -729,12 +849,36 @@ const SettingsView: React.FC = () => {
             <span className="settings-nav-label">OpenCode</span>
           </button>
           <button
+            className={`settings-nav-item ${activeSection === 'remoteControl' ? 'active' : ''}`}
+            onClick={() => setActiveSection('remoteControl')}
+            data-testid="settings-tab-remote-control"
+          >
+            <span className="settings-nav-icon">📡</span>
+            <span className="settings-nav-label">Remote Control</span>
+          </button>
+          <button
             className={`settings-nav-item ${activeSection === 'terminal' ? 'active' : ''}`}
             onClick={() => setActiveSection('terminal')}
             data-testid="settings-tab-terminal"
           >
             <span className="settings-nav-icon">💻</span>
             <span className="settings-nav-label">Terminal</span>
+          </button>
+          <button
+            className={`settings-nav-item ${activeSection === 'editor' ? 'active' : ''}`}
+            onClick={() => setActiveSection('editor')}
+            data-testid="settings-tab-editor"
+          >
+            <span className="settings-nav-icon">📝</span>
+            <span className="settings-nav-label">Editor</span>
+          </button>
+          <button
+            className={`settings-nav-item ${activeSection === 'filesView' ? 'active' : ''}`}
+            onClick={() => setActiveSection('filesView')}
+            data-testid="settings-tab-files-view"
+          >
+            <span className="settings-nav-icon">📁</span>
+            <span className="settings-nav-label">Files View</span>
           </button>
           <button
             className={`settings-nav-item ${activeSection === 'appearance' ? 'active' : ''}`}

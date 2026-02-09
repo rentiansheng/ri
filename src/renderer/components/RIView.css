@@ -1,0 +1,786 @@
+.riview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  overflow: hidden;
+}
+
+/* Toolbar */
+.riview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  height: 35px;
+  background: #252526;
+  border-bottom: 1px solid #3e3e3e;
+  user-select: none;
+}
+
+.riview-toolbar-left,
+.riview-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.riview-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  font-size: 13px;
+  color: #cccccc;
+}
+
+.riview-icon {
+  font-size: 14px;
+}
+
+.riview-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cccccc;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 24px;
+  transition: all 0.1s;
+}
+
+.riview-btn:hover {
+  background: #3e3e3e;
+}
+
+.riview-btn.active {
+  background: #414141;
+  border-color: #555;
+  color: #ffffff;
+}
+
+.riview-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.riview-btn-group {
+  display: flex;
+  background: #333333;
+  border-radius: 3px;
+  padding: 1px;
+  gap: 1px;
+}
+
+.riview-btn-group .riview-btn {
+  border-radius: 0;
+}
+
+.riview-btn-group .riview-btn:first-child {
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
+}
+
+.riview-btn-group .riview-btn:last-child {
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+/* Content Area */
+.riview-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+/* Code Editor */
+.riview-editor-container {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: #1e1e1e;
+  position: relative;
+}
+
+.riview-line-numbers {
+  width: 48px;
+  background: #1e1e1e;
+  border-right: 1px solid #333;
+  color: #858585;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: right;
+  padding: 10px 0;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.riview-line-number {
+  padding-right: 8px;
+  height: 20px;
+  box-sizing: border-box;
+}
+
+.riview-line-number.active {
+  color: #c6c6c6;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.riview-editor-scroll {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.riview-code-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.riview-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  padding: 10px;
+  z-index: 2;
+  outline: none;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  letter-spacing: 0;
+  word-spacing: 0;
+  box-sizing: border-box;
+}
+
+.riview-code-display {
+  margin: 0;
+  padding: 10px;
+  background: transparent;
+  pointer-events: none;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  letter-spacing: 0;
+  word-spacing: 0;
+  box-sizing: border-box;
+  color: #d4d4d4;
+  overflow: visible;
+}
+
+.riview-code-display code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  word-spacing: inherit;
+  tab-size: inherit;
+  -moz-tab-size: inherit;
+  white-space: inherit;
+}
+
+/* Split View */
+.riview-split-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.riview-pane {
+  height: 100%;
+  overflow: hidden;
+}
+
+.riview-resizer {
+  width: 4px;
+  background: #333;
+  cursor: col-resize;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.riview-resizer:hover,
+.riview-resizer.dragging {
+  background: #007acc;
+}
+
+/* Markdown Preview */
+.riview-preview {
+  height: 100%;
+  overflow: auto;
+  padding: 20px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+
+/* Reuse markdown styles from FileViewer.css effectively by scoping or redefining if needed */
+/* We can rely on global markdown styles or copy specific ones */
+.riview-preview .markdown-content {
+  max-width: none; /* Fill pane */
+}
+
+/* Tree View */
+.riview-tree {
+  padding: 10px;
+  overflow: auto;
+  height: 100%;
+}
+
+/* Status Bar */
+.riview-statusbar {
+  height: 22px;
+  background: #007acc;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 11px;
+  user-select: none;
+}
+
+.riview-statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.riview-statusbar-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.riview-status-msg {
+  margin-right: 12px;
+}
+.riview-status-msg.error {
+  background: #c72e0f;
+  padding: 0 6px;
+  border-radius: 2px;
+}
+.riview-status-msg.success {
+  color: #fff;
+}
+
+/* VSCode-style Search Panel */
+.riview-search-panel {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  width: 420px;
+  background: #252526;
+  border: 1px solid #454545;
+  border-top: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 6px 8px;
+  z-index: 100;
+  border-radius: 0 0 6px 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.riview-search-toggle {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 6px;
+  cursor: pointer;
+  color: #888;
+  transition: color 0.1s;
+}
+
+.riview-search-toggle:hover {
+  color: #ccc;
+}
+
+.riview-search-toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.riview-search-toggle svg.expanded {
+  transform: rotate(90deg);
+}
+
+.riview-search-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.riview-search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.riview-search-panel .riview-search-input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+  outline: none;
+  width: auto;
+  min-width: 0;
+}
+
+.riview-search-panel .riview-search-input:focus {
+  border-color: #007acc;
+}
+
+.riview-search-options-inline {
+  display: flex;
+  gap: 1px;
+  background: #3c3c3c;
+  border-radius: 3px;
+  padding: 1px;
+}
+
+.riview-option-btn-small {
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 3px 5px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'SF Mono', Menlo, Monaco, monospace;
+  transition: all 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+}
+
+.riview-option-btn-small:hover {
+  background: #505050;
+  color: #ccc;
+}
+
+.riview-option-btn-small.active {
+  background: #007acc;
+  color: #fff;
+}
+
+.riview-search-count {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  min-width: 65px;
+  text-align: right;
+}
+
+.riview-search-actions {
+  display: flex;
+  gap: 1px;
+}
+
+.riview-search-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cccccc;
+  padding: 3px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  transition: all 0.1s;
+}
+
+.riview-search-btn:hover:not(:disabled) {
+  background: #3e3e3e;
+}
+
+.riview-search-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.riview-search-btn.text {
+  font-size: 12px;
+  padding: 4px 8px;
+  min-width: auto;
+}
+
+.riview-search-options {
+  display: flex;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #3e3e3e;
+}
+
+.riview-option-btn {
+  background: transparent;
+  border: 1px solid #555;
+  color: #888;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'SF Mono', Menlo, Monaco, monospace;
+  transition: all 0.1s;
+}
+
+.riview-option-btn:hover {
+  background: #3e3e3e;
+  color: #ccc;
+}
+
+.riview-option-btn.active {
+  background: #007acc;
+  border-color: #007acc;
+  color: #fff;
+}
+
+/* File Changed Banner */
+.riview-file-changed-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #4d3800;
+  border-bottom: 1px solid #6d5200;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 50;
+  font-size: 13px;
+  color: #ffcc00;
+}
+
+.riview-file-changed-banner button {
+  background: #5a4200;
+  border: 1px solid #7a5a00;
+  color: #ffcc00;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.riview-file-changed-banner button:hover {
+  background: #6a5000;
+  border-color: #8a6a00;
+}
+
+.riview-file-changed-banner button:first-of-type {
+  background: #007acc;
+  border-color: #007acc;
+  color: #fff;
+}
+
+.riview-file-changed-banner button:first-of-type:hover {
+  background: #005a9e;
+}
+
+/* Legacy Search Box Overlay - keeping for reference */
+.riview-search-overlay {
+  position: absolute;
+  top: 4px;
+  right: 20px;
+  background: #252526;
+  border: 1px solid #454545;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 3px;
+  z-index: 20;
+}
+
+.riview-search-input {
+  background: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+  padding: 2px 6px;
+  width: 200px;
+  font-size: 13px;
+  outline: none;
+}
+.riview-search-input:focus {
+  border-color: #007acc;
+}
+
+/* Syntax Highlighting overrides */
+.riview code[class*="language-"],
+.riview pre[class*="language-"] {
+  text-shadow: none !important;
+}
+
+/* Current line highlight */
+.riview-line-number.current {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Shortcuts Panel */
+.riview-shortcuts-panel {
+  position: absolute;
+  top: 50px;
+  right: 20px;
+  width: 280px;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.riview-shortcuts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #333333;
+  border-bottom: 1px solid #454545;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.riview-shortcuts-header button {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.riview-shortcuts-header button:hover {
+  background: #454545;
+  color: #fff;
+}
+
+.riview-shortcuts-content {
+  padding: 12px 14px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.riview-shortcut-group {
+  margin-bottom: 16px;
+}
+
+.riview-shortcut-group:last-child {
+  margin-bottom: 0;
+}
+
+.riview-shortcut-group h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+.riview-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #cccccc;
+}
+
+.riview-shortcut kbd {
+  background: #3c3c3c;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 11px;
+  color: #d4d4d4;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Conflict Resolver */
+.riview-conflict-resolver {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1e1e1e;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.riview-conflict-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #4d3800;
+  border-bottom: 1px solid #6d5200;
+}
+
+.riview-conflict-icon {
+  font-size: 24px;
+}
+
+.riview-conflict-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffcc00;
+}
+
+.riview-conflict-desc {
+  font-size: 13px;
+  color: #ccaa00;
+}
+
+.riview-conflict-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.riview-conflict-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.riview-conflict-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #252526;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.riview-conflict-pane-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #cccccc;
+}
+
+.riview-conflict-pane-content {
+  flex: 1;
+  overflow: auto;
+  background: #1e1e1e;
+}
+
+.riview-conflict-pane-content pre {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.riview-conflict-divider {
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #252526;
+  border-left: 1px solid #3e3e3e;
+  border-right: 1px solid #3e3e3e;
+  color: #888;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.riview-conflict-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  background: #252526;
+  border-top: 1px solid #3e3e3e;
+  gap: 8px;
+}
+
+.riview-conflict-btn {
+  background: #3c3c3c;
+  border: 1px solid #555;
+  color: #cccccc;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.riview-conflict-btn:hover {
+  background: #4a4a4a;
+  border-color: #666;
+}
+
+.riview-conflict-btn.primary {
+  background: #007acc;
+  border-color: #007acc;
+  color: #fff;
+}
+
+.riview-conflict-btn.primary:hover {
+  background: #005a9e;
+}
+
+.riview-conflict-btn.secondary {
+  background: transparent;
+  border-color: #555;
+  color: #888;
+}
+
+.riview-conflict-btn.secondary:hover {
+  background: #333;
+  color: #ccc;
+}

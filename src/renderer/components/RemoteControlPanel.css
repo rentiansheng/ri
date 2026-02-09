@@ -1,0 +1,375 @@
+.remote-control-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #252526;
+  overflow: hidden;
+  width: 100%;
+}
+
+.remote-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.remote-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remote-panel-header h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #d4d4d4;
+  letter-spacing: 0.5px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.remote-panel-badge {
+  background: linear-gradient(135deg, #f48771, #f44336);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 8px;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(244, 135, 113, 0.3);
+}
+
+.remote-panel-status {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.remote-panel-status .status-online {
+  color: #4ec9b0;
+}
+
+.remote-panel-status .status-offline {
+  color: #666;
+}
+
+.remote-panel-tabs {
+  display: flex;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+  flex-shrink: 0;
+}
+
+.remote-panel-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.remote-panel-tab:hover {
+  color: #d4d4d4;
+  background: #37373d;
+}
+
+.remote-panel-tab.active {
+  color: #d4d4d4;
+  border-bottom-color: #007acc;
+}
+
+.remote-panel-tab .tab-count {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.remote-panel-tab .tab-badge {
+  background: #f48771;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 8px;
+  line-height: 1;
+}
+
+.remote-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.remote-panel-messages,
+.remote-panel-approvals {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.remote-panel-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.remote-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+  padding: 16px;
+}
+
+.remote-panel-empty p {
+  margin: 4px 0;
+  font-size: 0.85rem;
+}
+
+.remote-hint {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: #555;
+}
+
+.remote-panel-messages-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.remote-panel-clear-btn {
+  background: transparent;
+  color: #888;
+  border: 1px solid #555;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.remote-panel-clear-btn:hover {
+  background: #37373d;
+  border-color: #f48771;
+  color: #f48771;
+}
+
+.remote-panel-messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.remote-message {
+  background: #1e1e1e;
+  border: 1px solid #3e3e3e;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+
+.remote-message:hover {
+  background: #2d2d2d;
+  border-color: #555;
+}
+
+.remote-message.incoming {
+  border-left: 3px solid #4ec9b0;
+}
+
+.remote-message.outgoing {
+  border-left: 3px solid #007acc;
+}
+
+.remote-message.executed {
+  border-left: 3px solid #dcdcaa;
+}
+
+.remote-message.approved {
+  border-left: 3px solid #4ec9b0;
+}
+
+.remote-message.rejected {
+  border-left: 3px solid #f48771;
+}
+
+.remote-message-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+}
+
+.remote-message-type {
+  font-size: 0.9rem;
+}
+
+.remote-message-platform {
+  font-size: 0.9rem;
+}
+
+.remote-message-user {
+  color: #4ec9b0;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remote-message-time {
+  color: #666;
+  font-size: 0.65rem;
+}
+
+.remote-message-content {
+  font-size: 0.85rem;
+  color: #d4d4d4;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.remote-approvals-list {
+  padding: 8px;
+}
+
+.remote-approval-item {
+  background: #1e1e1e;
+  border: 1px solid #3e3e3e;
+  border-left: 3px solid #dcdcaa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  padding: 12px;
+  transition: all 0.15s ease;
+}
+
+.remote-approval-item:hover {
+  background: #2d2d2d;
+  border-color: #555;
+}
+
+.remote-approval-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+}
+
+.remote-approval-type {
+  background: rgba(220, 220, 170, 0.15);
+  color: #dcdcaa;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.remote-approval-platform {
+  font-size: 0.9rem;
+}
+
+.remote-approval-user {
+  color: #4ec9b0;
+  font-weight: 500;
+  flex: 1;
+}
+
+.remote-approval-time {
+  color: #666;
+  font-size: 0.65rem;
+}
+
+.remote-approval-command {
+  background: #1a1a1a;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.remote-approval-command code {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #ce9178;
+  word-break: break-all;
+}
+
+.remote-approval-args {
+  background: #1a1a1a;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+}
+
+.remote-approval-args pre {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #9cdcfe;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.remote-approval-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.remote-approve-btn,
+.remote-reject-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+}
+
+.remote-approve-btn {
+  background: #4ec9b0;
+  color: #1e1e1e;
+}
+
+.remote-approve-btn:hover {
+  background: #6ed7c0;
+}
+
+.remote-reject-btn {
+  background: transparent;
+  color: #f48771;
+  border: 1px solid #f48771;
+}
+
+.remote-reject-btn:hover {
+  background: rgba(244, 135, 113, 0.1);
+}

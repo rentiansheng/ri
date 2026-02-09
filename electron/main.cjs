@@ -6,6 +6,7 @@ const NotificationManager = require('./notificationManager.cjs');
 const OpencodeManager = require('./opencodeManager.cjs');
 const OpencodePluginManager = require('./opencodePlugin.cjs');
 const FlowManager = require('./flowManager.cjs');
+const RemoteControlManager = require('./remoteControlManager.cjs');
 
 // Set application name as early as possible (must be before app.whenReady)
 app.setName('RI');
@@ -54,6 +55,15 @@ terminalManager.on('terminal-notification', async ({ sessionId, sessionName, typ
   });
 });
 
+// Listen for view file requests (triggered by magic strings in output)
+// Format: __RI_VIEW:/path/to/file__ or OSC: \x1b]__RI_VIEW:/path__\x07
+terminalManager.on('terminal-view-file', ({ sessionId, terminalId, filePath }) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  
+  console.log(`[Main] View file request: ${filePath} from terminal ${terminalId}`);
+  mainWindow.webContents.send('terminal:view-file', { sessionId, terminalId, filePath });
+});
+
 // Initialize notification manager (will be set after window is created)
 let notificationManager = null;
 
@@ -65,15 +75,16 @@ opencodeManager.setConfig(config);
 const opencodePluginManager = new OpencodePluginManager();
 opencodePluginManager.setConfigManager(configManager);
 
-// Watch for config changes and apply them
+const remoteControlManager = new RemoteControlManager(terminalManager, config);
+
 configManager.on('config-changed', (newConfig) => {
   console.log('[Main] Config changed, applying...');
   terminalManager.applyConfig(newConfig);
   
-  // Update OpenCode manager config
   opencodeManager.setConfig(newConfig);
   
-  // Update notification manager config
+  remoteControlManager.setConfig(newConfig);
+  
   if (notificationManager) {
     notificationManager.updateConfig(newConfig);
     console.log('[Main] Notification config updated');
@@ -131,12 +142,44 @@ ipcMain.handle('file:stat', async (event, filePath) => {
 ipcMain.handle('file:read-dir', async (event, dirPath) => {
   try {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    const files = entries.map(entry => ({
-      name: entry.name,
-      isFile: entry.isFile(),
-      isDirectory: entry.isDirectory(),
-      path: path.join(dirPath, entry.name),
-    }));
+    const files = entries.map(entry => {
+      const fullPath = path.join(dirPath, entry.name);
+      const isHidden = entry.name.startsWith('.');
+      let size = 0;
+      let mtime = 0;
+      let ctime = 0;
+      
+      // Get stat info for files (skip for directories to avoid performance issues)
+      if (entry.isFile()) {
+        try {
+          const stats = fs.statSync(fullPath);
+          size = stats.size;
+          mtime = stats.mtime.getTime();
+          ctime = stats.ctime.getTime();
+        } catch (e) {
+          // Ignore stat errors (permission denied, etc.)
+        }
+      } else if (entry.isDirectory()) {
+        try {
+          const stats = fs.statSync(fullPath);
+          mtime = stats.mtime.getTime();
+          ctime = stats.ctime.getTime();
+        } catch (e) {
+          // Ignore stat errors
+        }
+      }
+      
+      return {
+        name: entry.name,
+        isFile: entry.isFile(),
+        isDirectory: entry.isDirectory(),
+        path: fullPath,
+        size,
+        mtime,
+        ctime,
+        isHidden,
+      };
+    });
     return { success: true, files };
   } catch (error) {
     return { success: false, error: error.message };
@@ -567,7 +610,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Create application menu
   createMenu();
   
   createWindow();
@@ -576,7 +618,6 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
   
-  // Auto-start OpenCode if enabled
   const currentConfig = configManager.getConfig();
   if (currentConfig.opencode?.enabled) {
     const delay = currentConfig.opencode.startupDelay || 2000;
@@ -593,37 +634,50 @@ app.whenReady().then(() => {
       }
     }, delay);
   }
+  
+  if (currentConfig.remoteControl?.enabled) {
+    console.log('[Main] Initializing Remote Control...');
+    remoteControlManager.initialize().catch(err => {
+      console.error('[Main] Failed to initialize Remote Control:', err);
+    });
+  }
 });
 
-// Clean up all terminals before app quits
 const cleanupTerminals = () => {
   console.log('[Main] Cleaning up all terminal processes...');
   terminalManager.disposeAll();
   configManager.cleanup();
 };
 
-// Clean up OpenCode processes
 const cleanupOpencode = () => {
   console.log('[Main] Cleaning up OpenCode processes...');
   opencodeManager.cleanup();
+};
+
+const cleanupRemoteControl = () => {
+  console.log('[Main] Cleaning up Remote Control...');
+  remoteControlManager.cleanup();
 };
 
 app.on('before-quit', (event) => {
   console.log('[Main] App is about to quit...');
   cleanupTerminals();
   cleanupOpencode();
+  cleanupRemoteControl();
 });
 
 app.on('will-quit', () => {
   console.log('[Main] App will quit...');
   cleanupTerminals();
   cleanupOpencode();
+  cleanupRemoteControl();
 });
 
 app.on('window-all-closed', () => {
   console.log('[Main] All windows closed...');
   cleanupTerminals();
   cleanupOpencode();
+  cleanupRemoteControl();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -934,5 +988,156 @@ ipcMain.handle('notification:test-channel', async (_event, channelType) => {
   } catch (error) {
     console.error('[Main] Failed to test channel:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// ------------------ IPC: Remote Control ------------------
+console.log('[Main] Registering remote-control IPC handlers...');
+
+ipcMain.handle('remote-control:get-status', async () => {
+  try {
+    const status = remoteControlManager.getStatus();
+    return { success: true, status };
+  } catch (error) {
+    console.error('[Main] Failed to get remote control status:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:initialize', async () => {
+  console.log('[Main] remote-control:initialize handler invoked');
+  try {
+    await remoteControlManager.initialize();
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Failed to initialize remote control:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:cleanup', async () => {
+  try {
+    await remoteControlManager.cleanup();
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Failed to cleanup remote control:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 测试功能
+ipcMain.handle('remote-control:test', async (event, testType) => {
+  try {
+    const results = await remoteControlManager.runTest(testType);
+    return { success: true, results };
+  } catch (error) {
+    console.error('[Main] Remote control test failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:simulate', async (event, command) => {
+  try {
+    const result = await remoteControlManager.simulateCommand(command);
+    return result;
+  } catch (error) {
+    console.error('[Main] Remote control simulate failed:', error);
+    return { success: false, response: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:test-connection', async (event, platform) => {
+  try {
+    const result = await remoteControlManager.testConnection(platform);
+    return result;
+  } catch (error) {
+    console.error('[Main] Remote control test connection failed:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:send-test-notification', async (event, platform, channelId) => {
+  try {
+    const result = await remoteControlManager.sendTestNotification(platform, channelId);
+    return result;
+  } catch (error) {
+    console.error('[Main] Remote control send test notification failed:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:validate-config', async () => {
+  try {
+    const result = await remoteControlManager.validateAndTestConfig();
+    return { success: true, result };
+  } catch (error) {
+    console.error('[Main] Remote control validate config failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:get-messages', async (event, limit) => {
+  try {
+    const messages = remoteControlManager.getMessageLog(limit);
+    return { success: true, messages };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:clear-messages', async () => {
+  try {
+    remoteControlManager.clearMessageLog();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:send-message', async (event, platform, message, channelId) => {
+  try {
+    const result = await remoteControlManager.sendMessageToRemote(platform, message, channelId);
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:get-pending-approvals', async () => {
+  try {
+    const approvals = remoteControlManager.getPendingApprovals();
+    return { success: true, approvals };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:approve-command', async (event, approvalId) => {
+  try {
+    const result = await remoteControlManager.approveCommand(approvalId);
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-control:reject-command', async (event, approvalId, reason) => {
+  try {
+    const result = await remoteControlManager.rejectCommand(approvalId, reason);
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+remoteControlManager.on('message', (msg) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('remote-control:message', msg);
+  }
+});
+
+remoteControlManager.on('approval-required', (approval) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('remote-control:approval-required', approval);
   }
 });

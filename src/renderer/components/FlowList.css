@@ -153,6 +153,32 @@
   margin-left: 0;
 }
 
+/* Drag and drop styles */
+.flow-tree-item.dragging {
+  opacity: 0.5;
+}
+
+.flow-tree-item.drop-before {
+  border-top: 2px solid #007acc;
+  margin-top: -1px;
+}
+
+.flow-tree-item.drop-after {
+  border-bottom: 2px solid #007acc;
+  margin-bottom: -1px;
+}
+
+.flow-tree-item.drop-inside {
+  background: rgba(0, 122, 204, 0.2);
+}
+
+.flow-list-content.drop-root {
+  background: rgba(0, 122, 204, 0.1);
+  border: 1px dashed #007acc;
+  border-radius: 4px;
+  margin: 4px;
+}
+
 .flow-tree-edit-input {
   flex: 1;
   background: #3c3c3c;

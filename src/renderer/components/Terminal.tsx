@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { useTerminalStore } from '../store/terminalStore';
@@ -64,6 +64,7 @@ const Terminal: React.FC<TerminalProps> = ({
   isVisible,
   useRelativePosition = false
 }) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement | null>(null);
   const isComposingRef = useRef<boolean>(false);
@@ -74,6 +75,9 @@ const Terminal: React.FC<TerminalProps> = ({
   
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchCount, setSearchCount] = useState<{ current: number; total: number } | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchVisibleRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null);
   
   // Incremented when DOM is lost to force re-mount effect
@@ -392,6 +396,20 @@ const Terminal: React.FC<TerminalProps> = ({
           if (xterm) xterm.clear();
           return;
         }
+        // Cmd+F = open search
+        if (key === 'f' || key === 'F') {
+          e.preventDefault();
+          searchVisibleRef.current = true;
+          setSearchVisible(true);
+          if (xterm) {
+            const selection = xterm.getSelection();
+            if (selection) {
+              setSearchTerm(selection);
+            }
+          }
+          setTimeout(() => searchInputRef.current?.focus(), 0);
+          return;
+        }
         // Cmd+D = split vertically. Cmd+Shift+D is handled below (split horizontally).
         if ((key === 'd' || key === 'D') && !e.shiftKey && splitContext) {
           e.preventDefault();
@@ -628,11 +646,10 @@ const Terminal: React.FC<TerminalProps> = ({
         e.preventDefault();
         const mouseEvent = e as MouseEvent;
         const hasSelection = xterm.hasSelection();
-        setContextMenu({
-          x: mouseEvent.clientX,
-          y: mouseEvent.clientY,
-          hasSelection,
-        });
+        const wrapperRect = wrapperRef.current?.getBoundingClientRect();
+        const x = wrapperRect ? mouseEvent.clientX - wrapperRect.left : mouseEvent.clientX;
+        const y = wrapperRect ? mouseEvent.clientY - wrapperRect.top : mouseEvent.clientY;
+        setContextMenu({ x, y, hasSelection });
       };
 
       // 添加到 xterm 元素上
@@ -746,7 +763,7 @@ const Terminal: React.FC<TerminalProps> = ({
           console.error('[Terminal] Fit failed:', e);
         }
       }
-      if (hiddenInputRef.current) {
+      if (hiddenInputRef.current && !searchVisibleRef.current) {
         hiddenInputRef.current.focus({ preventScroll: true });
       }
       syncInputPosition();
@@ -755,12 +772,33 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => clearTimeout(timer);
   }, [isActive, isVisible, xterm, fitAddon, terminalId, sessionId]);
 
-  const handleContainerClick = () => {
+  useEffect(() => {
+    if (!searchAddon) return;
+    
+    const disposable = searchAddon.onDidChangeResults((e: { resultIndex: number; resultCount: number }) => {
+      if (e.resultCount === -1) {
+        setSearchCount(null);
+      } else {
+        setSearchCount({ current: e.resultIndex + 1, total: e.resultCount });
+      }
+    });
+    
+    return () => disposable.dispose();
+  }, [searchAddon]);
+
+  const handleContainerClick = (e: React.MouseEvent) => {
     console.log(`[Terminal ${sessionId}/${terminalId}] Container clicked`, {
       isActive,
       isVisible,
-      hasHiddenInput: !!hiddenInputRef.current
+      hasHiddenInput: !!hiddenInputRef.current,
+      searchVisible: searchVisibleRef.current
     });
+    
+    if (searchVisibleRef.current) {
+      closeSearch();
+      return;
+    }
+    
     if (isVisible && hiddenInputRef.current) {
       hiddenInputRef.current.focus({ preventScroll: true });
       console.log(`[Terminal ${sessionId}/${terminalId}] Focused hidden input`);
@@ -769,10 +807,35 @@ const Terminal: React.FC<TerminalProps> = ({
   
   // 定期检查并确保 textarea 保持焦点（当终端激活时）
   useEffect(() => {
+    searchVisibleRef.current = searchVisible;
+    
+    if (!searchVisible && isActive && isVisible && hiddenInputRef.current) {
+      const timer = setTimeout(() => {
+        if (hiddenInputRef.current && !searchVisibleRef.current) {
+          console.log(`[Terminal ${sessionId}] searchVisible changed to false, restoring focus`);
+          console.log(`[Terminal ${sessionId}] Before focus - activeElement:`, document.activeElement?.tagName, document.activeElement?.className);
+          hiddenInputRef.current.focus({ preventScroll: true });
+          console.log(`[Terminal ${sessionId}] After focus - activeElement:`, document.activeElement?.tagName, document.activeElement?.className);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [searchVisible, isActive, isVisible, sessionId]);
+
+  const isSearchInputFocused = useCallback(() => {
+    return searchInputRef.current && document.activeElement === searchInputRef.current;
+  }, []);
+
+  useEffect(() => {
     if (!isActive || !isVisible) return;
     
     const ensureFocus = () => {
-      if (isEditingAnything()) {
+      if (isEditingAnything() || searchVisibleRef.current || isSearchInputFocused()) {
+        return;
+      }
+      
+      const activeEl = document.activeElement as HTMLElement;
+      if (activeEl?.closest('.terminal-search-panel')) {
         return;
       }
       
@@ -787,21 +850,20 @@ const Terminal: React.FC<TerminalProps> = ({
       }
     };
     
-    // 定期检查焦点（每 500ms）
     const intervalId = setInterval(ensureFocus, 500);
     
-    // 监听 focusout 事件，立即重新聚焦
     const handleFocusOut = (e: FocusEvent) => {
-      // 🔥 关键修复：如果正在编辑 session/tab 名称，不要抢夺焦点
-      if (isEditingAnything()) {
+      if (isEditingAnything() || searchVisibleRef.current || isSearchInputFocused()) {
         return;
       }
       
-      // 如果焦点离开了隐藏输入框，且不是因为窗口失去焦点
       if (e.target === hiddenInputRef.current && document.hasFocus()) {
         setTimeout(() => {
-          if (hiddenInputRef.current && !isEditingAnything()) {
-            hiddenInputRef.current.focus({ preventScroll: true });
+          if (hiddenInputRef.current && !isEditingAnything() && !searchVisibleRef.current && !isSearchInputFocused()) {
+            const activeEl = document.activeElement as HTMLElement;
+            if (!activeEl?.closest('.terminal-search-panel')) {
+              hiddenInputRef.current.focus({ preventScroll: true });
+            }
           }
         }, 10);
       }
@@ -817,12 +879,69 @@ const Terminal: React.FC<TerminalProps> = ({
         hiddenInputRef.current.removeEventListener('focusout', handleFocusOut as any);
       }
     };
-  }, [isActive, isVisible, isEditingAnything]);
+  }, [isActive, isVisible, isEditingAnything, isSearchInputFocused]);
 
   const handleSearch = (term: string, forward: boolean = true) => {
-    if (!searchAddon || !term) return;
-    if (forward) searchAddon.findNext(term, { incremental: false });
-    else searchAddon.findPrevious(term, { incremental: false });
+    if (!searchAddon || !term) {
+      setSearchCount(null);
+      if (searchAddon) {
+        searchAddon.clearDecorations();
+      }
+      return;
+    }
+    
+    const searchOptions = {
+      incremental: true,
+      decorations: {
+        matchBackground: '#515C6A',
+        matchBorder: '#74879f',
+        matchOverviewRuler: '#d186167e',
+        activeMatchBackground: '#515C6A',
+        activeMatchBorder: '#74879f',
+        activeMatchColorOverviewRuler: '#d186167e'
+      }
+    };
+    
+    if (forward) {
+      searchAddon.findNext(term, searchOptions);
+    } else {
+      searchAddon.findPrevious(term, searchOptions);
+    }
+    
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch(searchTerm, !e.shiftKey);
+    } else if (e.key === 'Escape') {
+      closeSearch();
+    }
+  };
+
+  const closeSearch = () => {
+    if (searchAddon) {
+      searchAddon.clearDecorations();
+    }
+    searchVisibleRef.current = false;
+    setSearchVisible(false);
+    setSearchTerm('');
+    setSearchCount(null);
+    
+    const restoreFocus = () => {
+      console.log(`[Terminal ${sessionId}] closeSearch: restoring focus, hiddenInput exists:`, !!hiddenInputRef.current);
+      if (hiddenInputRef.current) {
+        hiddenInputRef.current.focus({ preventScroll: true });
+        console.log(`[Terminal ${sessionId}] closeSearch: focus restored, activeElement:`, document.activeElement);
+      }
+    };
+    
+    requestAnimationFrame(() => {
+      restoreFocus();
+      setTimeout(restoreFocus, 50);
+    });
   };
 
   const handleCopy = async () => {
@@ -889,8 +1008,31 @@ const Terminal: React.FC<TerminalProps> = ({
     return null;
   }
 
+  const wrapperStyle: React.CSSProperties = useRelativePosition ? {
+    position: 'relative',
+    height: '100%',
+    width: '100%',
+  } : {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '100%',
+    width: '100%',
+    zIndex: isVisible && isActive ? 2 : isVisible ? 1 : 0,
+  };
+
   return (
-    <>
+    <div 
+      ref={wrapperRef}
+      className="terminal-wrapper"
+      style={{
+        ...wrapperStyle,
+        visibility: isVisible ? 'visible' : 'hidden',
+        pointerEvents: isVisible ? 'auto' : 'none',
+      }}
+    >
       <div 
         ref={containerRef} 
         className="terminal-container"
@@ -898,48 +1040,50 @@ const Terminal: React.FC<TerminalProps> = ({
         data-terminal-id={terminalId}
         data-is-visible={isVisible}
         data-is-active={isActive}
-        style={useRelativePosition ? {
-          position: 'relative',
-          height: '100%',
-          width: '100%',
-          contain: 'strict',
-          visibility: isVisible ? 'visible' : 'hidden',
-          pointerEvents: isVisible ? 'auto' : 'none',
-        } : { 
+        style={{
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          height: '100%',
-          width: '100%',
           contain: 'strict',
-          visibility: isVisible ? 'visible' : 'hidden',
-          pointerEvents: isVisible ? 'auto' : 'none',
-          zIndex: isVisible && isActive ? 2 : isVisible ? 1 : 0,
         }}
         onClick={handleContainerClick}
       />
       
       {searchVisible && isActive && isVisible && (
-        <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#2d2d2d', padding: '8px', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', gap: '4px' }}>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(searchTerm, !e.shiftKey); }}
-            placeholder="Search..."
-            style={{ background: '#1e1e1e', border: '1px solid #3e3e3e', color: '#d4d4d4', padding: '4px 8px', borderRadius: '3px', fontSize: '13px', outline: 'none' }}
-            autoFocus
-          />
-          <button onClick={() => handleSearch(searchTerm, false)} style={{ background: '#0e639c', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '3px', cursor: 'pointer' }}>↑</button>
-          <button onClick={() => handleSearch(searchTerm, true)} style={{ background: '#0e639c', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: '3px', cursor: 'pointer' }}>↓</button>
-          <button onClick={() => setSearchVisible(false)} style={{ background: 'transparent', border: 'none', color: '#d4d4d4', padding: '4px 8px', cursor: 'pointer' }}>✕</button>
+        <div 
+          className="terminal-search-panel"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="terminal-search-row">
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="terminal-search-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search... (Enter to search)"
+              autoFocus
+            />
+            {searchCount && (
+              <span className="terminal-search-count">
+                {searchCount.total > 0 ? `${searchCount.current}/${searchCount.total}` : 'No results'}
+              </span>
+            )}
+            <div className="terminal-search-actions">
+              <button className="terminal-search-btn" onClick={() => handleSearch(searchTerm, false)} title="Previous (Shift+Enter)">↑</button>
+              <button className="terminal-search-btn" onClick={() => handleSearch(searchTerm, true)} title="Next (Enter)">↓</button>
+              <button className="terminal-search-btn close" onClick={closeSearch} title="Close (Escape)">✕</button>
+            </div>
+          </div>
         </div>
       )}
       
       {contextMenu && isActive && isVisible && (
-        <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: '#2d2d2d', border: '1px solid #3e3e3e', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', zIndex: 2000, minWidth: '180px', padding: '4px 0' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: 'absolute', left: contextMenu.x, top: contextMenu.y, background: '#2d2d2d', border: '1px solid #3e3e3e', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', zIndex: 2000, minWidth: '180px', padding: '4px 0' }} onClick={(e) => e.stopPropagation()}>
           {contextMenu.hasSelection && (
             <div onClick={handleCopy} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>Copy</div>
           )}
@@ -960,7 +1104,7 @@ const Terminal: React.FC<TerminalProps> = ({
           <div onClick={handleClear} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '13px', color: '#d4d4d4' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0e639c'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>Clear Terminal</div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

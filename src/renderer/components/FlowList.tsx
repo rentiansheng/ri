@@ -22,6 +22,13 @@ interface ContextMenuState {
   targetPath: string;
 }
 
+interface DragState {
+  isDragging: boolean;
+  draggedNode: FlowTreeNode | null;
+  dropTarget: FlowTreeNode | null;
+  dropPosition: 'before' | 'after' | 'inside' | null;
+}
+
 interface FlowListProps {
   onFlowSelect?: (flow: Flow) => void;
   onFolderSelect?: (path: string) => void;
@@ -45,6 +52,12 @@ const FlowList: React.FC<FlowListProps> = ({
     y: 0,
     targetNode: null,
     targetPath: '',
+  });
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    draggedNode: null,
+    dropTarget: null,
+    dropPosition: null,
   });
   const editInputRef = useRef<HTMLInputElement>(null);
   const { createSession, openFlowTab } = useTerminalStore();
@@ -77,7 +90,9 @@ const FlowList: React.FC<FlowListProps> = ({
     const folderMap = new Map<string, FlowTreeNode>();
     folderMap.set('', { id: 'root', label: 'Root', type: 'folder', path: '', children: [] });
 
-    flows.forEach(flow => {
+    const sortedFlows = [...flows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    sortedFlows.forEach(flow => {
       const flowPath = flow.path || '';
       const parts = flowPath ? flowPath.split('/') : [];
       
@@ -154,6 +169,188 @@ const FlowList: React.FC<FlowListProps> = ({
         commands: node.flow.commands,
       });
     }
+  };
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, node: FlowTreeNode) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', node.id);
+    setDragState({
+      isDragging: true,
+      draggedNode: node,
+      dropTarget: null,
+      dropPosition: null,
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDragState({
+      isDragging: false,
+      draggedNode: null,
+      dropTarget: null,
+      dropPosition: null,
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent, node: FlowTreeNode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!dragState.draggedNode || dragState.draggedNode.id === node.id) return;
+    
+    // Don't allow dropping a folder into itself or its children
+    if (dragState.draggedNode.type === 'folder' && 
+        (node.path === dragState.draggedNode.path || 
+         node.path.startsWith(dragState.draggedNode.path + '/'))) {
+      return;
+    }
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+    
+    let position: 'before' | 'after' | 'inside';
+    if (node.type === 'folder') {
+      // For folders: top 25% = before, middle 50% = inside, bottom 25% = after
+      if (y < height * 0.25) {
+        position = 'before';
+      } else if (y > height * 0.75) {
+        position = 'after';
+      } else {
+        position = 'inside';
+      }
+    } else {
+      // For flows: top 50% = before, bottom 50% = after
+      position = y < height * 0.5 ? 'before' : 'after';
+    }
+    
+    setDragState(prev => ({
+      ...prev,
+      dropTarget: node,
+      dropPosition: position,
+    }));
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only clear if leaving the actual element, not entering a child
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!e.currentTarget.contains(relatedTarget)) {
+      setDragState(prev => ({
+        ...prev,
+        dropTarget: null,
+        dropPosition: null,
+      }));
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetNode: FlowTreeNode | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const { draggedNode, dropPosition } = dragState;
+    if (!draggedNode) {
+      handleDragEnd();
+      return;
+    }
+
+    const config = await window.config.get();
+    let updatedFlows = [...(config.flows || [])];
+    
+    let newPath: string;
+    let newOrder: number;
+    
+    if (!targetNode) {
+      newPath = '';
+      const rootFlows = updatedFlows.filter(f => (f.path || '') === '');
+      newOrder = Math.max(...rootFlows.map(f => f.order ?? 0), -1) + 1;
+    } else if (!dropPosition || draggedNode.id === targetNode.id) {
+      handleDragEnd();
+      return;
+    } else if (dropPosition === 'inside' && targetNode.type === 'folder') {
+      newPath = targetNode.path;
+      const folderFlows = updatedFlows.filter(f => (f.path || '') === newPath);
+      newOrder = Math.max(...folderFlows.map(f => f.order ?? 0), -1) + 1;
+    } else {
+      newPath = targetNode.path;
+      const targetFlow = targetNode.type === 'flow' ? targetNode.flow : null;
+      const targetOrder = targetFlow?.order ?? 0;
+      
+      if (dropPosition === 'before') {
+        newOrder = targetOrder;
+        updatedFlows = updatedFlows.map(f => {
+          if ((f.path || '') === newPath && (f.order ?? 0) >= targetOrder && f.id !== draggedNode.id) {
+            return { ...f, order: (f.order ?? 0) + 1 };
+          }
+          return f;
+        });
+      } else {
+        newOrder = targetOrder + 1;
+        updatedFlows = updatedFlows.map(f => {
+          if ((f.path || '') === newPath && (f.order ?? 0) > targetOrder && f.id !== draggedNode.id) {
+            return { ...f, order: (f.order ?? 0) + 1 };
+          }
+          return f;
+        });
+      }
+    }
+
+    if (draggedNode.type === 'flow' && draggedNode.flow) {
+      updatedFlows = updatedFlows.map(f => 
+        f.id === draggedNode.id ? { ...f, path: newPath, order: newOrder } : f
+      );
+    } else if (draggedNode.type === 'folder') {
+      const oldPath = draggedNode.path;
+      const folderName = oldPath.split('/').pop() || '';
+      const newFolderPath = newPath ? `${newPath}/${folderName}` : folderName;
+      
+      updatedFlows = updatedFlows.map(f => {
+        if (f.path === oldPath) {
+          return { ...f, path: newFolderPath };
+        }
+        if (f.path?.startsWith(oldPath + '/')) {
+          return { ...f, path: f.path.replace(oldPath, newFolderPath) };
+        }
+        return f;
+      });
+      
+      setExpandedFolders(prev => {
+        const next = new Set(prev);
+        if (next.has(oldPath)) {
+          next.delete(oldPath);
+          next.add(newFolderPath);
+        }
+        if (targetNode && dropPosition === 'inside') {
+          next.add(targetNode.path);
+        }
+        return next;
+      });
+    }
+
+    await window.config.update({ flows: updatedFlows });
+    setFlows(updatedFlows);
+    handleDragEnd();
+  };
+
+  const handleRootDragOver = (e: React.DragEvent) => {
+    if (!dragState.draggedNode) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.flow-tree-item')) return;
+    
+    e.preventDefault();
+    setDragState(prev => ({
+      ...prev,
+      dropTarget: null,
+      dropPosition: 'inside',
+    }));
+  };
+
+  const handleRootDrop = (e: React.DragEvent) => {
+    if (!dragState.draggedNode) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.flow-tree-item')) return;
+    
+    handleDrop(e, null);
   };
 
   const handleContextMenu = (e: React.MouseEvent, node: FlowTreeNode | null, path: string) => {
@@ -322,15 +519,24 @@ const FlowList: React.FC<FlowListProps> = ({
     const isSelected = node.type === 'flow' && node.id === selectedFlowId;
     const hasChildren = node.children && node.children.length > 0;
     const isEditing = editingId === node.id;
+    const isDragging = dragState.draggedNode?.id === node.id;
+    const isDropTarget = dragState.dropTarget?.id === node.id;
+    const dropPosition = isDropTarget ? dragState.dropPosition : null;
 
     return (
       <div key={node.id} className="flow-tree-node">
         <div
-          className={`flow-tree-item ${isSelected ? 'selected' : ''} ${node.type}`}
+          className={`flow-tree-item ${isSelected ? 'selected' : ''} ${node.type} ${isDragging ? 'dragging' : ''} ${isDropTarget ? `drop-${dropPosition}` : ''}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => !isEditing && handleNodeClick(node)}
           onDoubleClick={() => !isEditing && handleNodeDoubleClick(node)}
           onContextMenu={(e) => handleContextMenu(e, node, node.path)}
+          draggable={!isEditing}
+          onDragStart={(e) => handleDragStart(e, node)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => handleDragOver(e, node)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, node)}
         >
           {node.type === 'folder' && (
             <span 
@@ -398,7 +604,12 @@ const FlowList: React.FC<FlowListProps> = ({
           +
         </button>
       </div>
-      <div className="flow-list-content" data-testid="flow-list-content">
+      <div 
+        className={`flow-list-content ${dragState.isDragging && !dragState.dropTarget ? 'drop-root' : ''}`}
+        data-testid="flow-list-content"
+        onDragOver={handleRootDragOver}
+        onDrop={handleRootDrop}
+      >
         {tree.length === 0 ? (
           <div className="flow-list-empty" data-testid="flow-list-empty">
             <p>No workflows yet</p>
