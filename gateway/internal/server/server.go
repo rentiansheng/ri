@@ -18,6 +18,7 @@ import (
 
 type Server struct {
 	httpServer *http.Server
+	mux        *http.ServeMux
 	registry   *registry.Registry
 	connMgr    *connection.ConnectionManager
 	eventBus   *eventbus.EventBus
@@ -45,6 +46,7 @@ func New(cfg Config, reg *registry.Registry, connMgr *connection.ConnectionManag
 	}
 
 	mux := http.NewServeMux()
+	s.mux = mux
 
 	mux.HandleFunc("POST /ri/register", s.handleRIRegister)
 	mux.HandleFunc("GET /ri/poll", s.handleRIPoll)
@@ -69,6 +71,10 @@ func New(cfg Config, reg *registry.Registry, connMgr *connection.ConnectionManag
 	}
 
 	return s
+}
+
+func (s *Server) Mux() *http.ServeMux {
+	return s.mux
 }
 
 func (s *Server) Start() error {

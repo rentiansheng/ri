@@ -15,6 +15,7 @@ interface GatewayConfig {
   enabled: boolean;
   url: string;
   riID: string;
+  encryptionKey: string;
   pollTimeout: number;
   heartbeatInterval: number;
   reconnectInterval: number;
@@ -25,6 +26,7 @@ const defaultGatewayConfig: GatewayConfig = {
   enabled: false,
   url: 'http://localhost:8080',
   riID: '',
+  encryptionKey: '',
   pollTimeout: 30000,
   heartbeatInterval: 10000,
   reconnectInterval: 1000,
@@ -292,6 +294,12 @@ export const RemoteControlSettings: React.FC = () => {
   const handleGatewayRiIdChange = async (riID: string) => {
     await updateConfig({
       gateway: { ...gatewayConfig, riID },
+    });
+  };
+
+  const handleGatewayEncryptionKeyChange = async (encryptionKey: string) => {
+    await updateConfig({
+      gateway: { ...gatewayConfig, encryptionKey },
     });
   };
 
@@ -758,6 +766,21 @@ export const RemoteControlSettings: React.FC = () => {
             placeholder="my-desktop-001"
             value={gatewayConfig.riID}
             onChange={(e) => handleGatewayRiIdChange(e.target.value)}
+            disabled={loading || gatewayConfig.enabled}
+          />
+        </div>
+
+        <div className="setting-row">
+          <div className="setting-label">
+            <span>Encryption Key</span>
+            <span className="setting-hint">Shared key for encrypted communication (from Gateway config)</span>
+          </div>
+          <input
+            type="password"
+            className="setting-input"
+            placeholder="Enter encryption key"
+            value={gatewayConfig.encryptionKey}
+            onChange={(e) => handleGatewayEncryptionKeyChange(e.target.value)}
             disabled={loading || gatewayConfig.enabled}
           />
         </div>

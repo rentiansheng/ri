@@ -11,6 +11,8 @@ type Config struct {
 	Slack    SlackConfig    `json:"slack"`
 	Discord  DiscordConfig  `json:"discord"`
 	Registry RegistryConfig `json:"registry"`
+	Security SecurityConfig `json:"security"`
+	WebUI    WebUIConfig    `json:"web_ui"`
 }
 
 type ServerConfig struct {
@@ -30,6 +32,16 @@ type RegistryConfig struct {
 	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
 	HeartbeatTimeout  time.Duration `json:"heartbeat_timeout"`
 	StaleTimeout      time.Duration `json:"stale_timeout"`
+}
+
+type SecurityConfig struct {
+	EncryptionKey string `json:"encryption_key"`
+}
+
+type WebUIConfig struct {
+	Enabled  bool   `json:"enabled"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func LoadFromFile(path string) (*Config, error) {
@@ -62,6 +74,14 @@ func LoadFromEnv() *Config {
 			HeartbeatInterval: getDurationEnv("REGISTRY_HEARTBEAT_INTERVAL", 10*time.Second),
 			HeartbeatTimeout:  getDurationEnv("REGISTRY_HEARTBEAT_TIMEOUT", 25*time.Second),
 			StaleTimeout:      getDurationEnv("REGISTRY_STALE_TIMEOUT", 60*time.Second),
+		},
+		Security: SecurityConfig{
+			EncryptionKey: os.Getenv("GATEWAY_ENCRYPTION_KEY"),
+		},
+		WebUI: WebUIConfig{
+			Enabled:  os.Getenv("GATEWAY_WEBUI_ENABLED") == "true",
+			Username: getEnv("GATEWAY_WEBUI_USERNAME", "admin"),
+			Password: os.Getenv("GATEWAY_WEBUI_PASSWORD"),
 		},
 	}
 }

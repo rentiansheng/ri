@@ -1,10 +1,13 @@
 package registry
 
 import (
+	"encoding/json"
+	"log"
 	"sync"
 	"time"
 
 	"om/gateway/internal/connection"
+	"om/gateway/internal/crypto"
 	"om/gateway/internal/types"
 )
 
@@ -18,6 +21,7 @@ type Registry struct {
 	connMgr         *connection.ConnectionManager
 	riInfos         map[string]*types.RIInfo
 	capabilityIndex map[string][]string
+	encryptionKey   string
 	mu              sync.RWMutex
 
 	heartbeatInterval time.Duration
@@ -39,6 +43,10 @@ func New(connMgr *connection.ConnectionManager) *Registry {
 	}
 }
 
+func (r *Registry) SetEncryptionKey(key string) {
+	r.encryptionKey = key
+}
+
 func (r *Registry) Register(reg *types.RIRegistration) (*types.RIInfo, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -53,6 +61,19 @@ func (r *Registry) Register(reg *types.RIRegistration) (*types.RIInfo, error) {
 		State:          types.GatewayRIStateRegistered,
 		LastHeartbeat:  now,
 		ConnectedAt:    now,
+	}
+
+	if len(reg.RemoteConfig) > 0 {
+		var encPayload crypto.EncryptedPayload
+		if err := json.Unmarshal(reg.RemoteConfig, &encPayload); err == nil {
+			var remoteConfig types.RIRemoteConfig
+			if err := crypto.DecryptJSON(&encPayload, r.encryptionKey, &remoteConfig); err == nil {
+				info.RemoteConfig = &remoteConfig
+				log.Printf("[Registry] Decrypted remote config for RI %s", reg.RIID)
+			} else {
+				log.Printf("[Registry] Failed to decrypt remote config for RI %s: %v", reg.RIID, err)
+			}
+		}
 	}
 
 	r.riInfos[reg.RIID] = info

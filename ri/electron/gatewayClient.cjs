@@ -1,15 +1,22 @@
 const EventEmitter = require('events');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
+
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
 
 class GatewayClient extends EventEmitter {
   constructor(terminalManager, config = {}) {
     super();
     this.terminalManager = terminalManager;
+    this.fullConfig = config;
     this.config = config?.gateway || {};
     
     this.riID = this.config.riID || `ri-${Date.now()}`;
     this.gatewayURL = this.config.url || 'http://localhost:8080';
+    this.encryptionKey = this.config.encryptionKey || '';
     this.version = '1.0.0';
     this.capabilities = [
       'slack.message', 
@@ -38,10 +45,72 @@ class GatewayClient extends EventEmitter {
     this.OUTPUT_DEBOUNCE_MS = 500;
   }
 
+  deriveKey(key) {
+    return crypto.createHash('sha256').update(key).digest();
+  }
+
+  encrypt(plaintext) {
+    if (!this.encryptionKey) {
+      return { encrypted: false, data: plaintext };
+    }
+    
+    try {
+      const key = this.deriveKey(this.encryptionKey);
+      const iv = crypto.randomBytes(IV_LENGTH);
+      const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+      
+      const data = typeof plaintext === 'string' ? plaintext : JSON.stringify(plaintext);
+      let encrypted = cipher.update(data, 'utf8', 'base64');
+      encrypted += cipher.final('base64');
+      
+      const authTag = cipher.getAuthTag();
+      
+      return {
+        encrypted: true,
+        iv: iv.toString('base64'),
+        authTag: authTag.toString('base64'),
+        data: encrypted
+      };
+    } catch (error) {
+      console.error('[GatewayClient] Encryption failed:', error.message);
+      return { encrypted: false, data: plaintext };
+    }
+  }
+
+  decrypt(payload) {
+    if (!payload.encrypted || !this.encryptionKey) {
+      return payload.data;
+    }
+    
+    try {
+      const key = this.deriveKey(this.encryptionKey);
+      const iv = Buffer.from(payload.iv, 'base64');
+      const authTag = Buffer.from(payload.authTag, 'base64');
+      const encrypted = payload.data;
+      
+      const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+      decipher.setAuthTag(authTag);
+      
+      let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      try {
+        return JSON.parse(decrypted);
+      } catch {
+        return decrypted;
+      }
+    } catch (error) {
+      console.error('[GatewayClient] Decryption failed:', error.message);
+      throw new Error('Decryption failed - check encryption key');
+    }
+  }
+
   setConfig(config) {
+    this.fullConfig = config;
     this.config = config?.gateway || {};
     this.gatewayURL = this.config.url || this.gatewayURL;
     this.riID = this.config.riID || this.riID;
+    this.encryptionKey = this.config.encryptionKey || '';
   }
 
   async start() {
@@ -101,6 +170,17 @@ class GatewayClient extends EventEmitter {
   }
 
   async register() {
+    // Build remote config from fullConfig (includes Slack/Discord settings)
+    const remoteControl = this.fullConfig?.remoteControl || {};
+    const notification = this.fullConfig?.notification || {};
+    
+    // Encrypt sensitive remote config if encryption key is set
+    const encryptedRemoteConfig = this.encrypt({
+      discord: remoteControl.discord || {},
+      slack: remoteControl.slack || {},
+      notification: notification,
+    });
+
     const registration = {
       ri_id: this.riID,
       version: this.version,
@@ -110,6 +190,7 @@ class GatewayClient extends EventEmitter {
         type: 'electron-app',
         platform: process.platform,
       },
+      remote_config: encryptedRemoteConfig,
     };
 
     const response = await this.request('POST', '/ri/register', registration);

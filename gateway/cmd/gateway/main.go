@@ -15,6 +15,7 @@ import (
 	"om/gateway/internal/eventbus"
 	"om/gateway/internal/registry"
 	"om/gateway/internal/server"
+	"om/gateway/internal/webui"
 )
 
 func main() {
@@ -34,6 +35,7 @@ func main() {
 
 	connMgr := connection.NewConnectionManager()
 	reg := registry.New(connMgr)
+	reg.SetEncryptionKey(cfg.Security.EncryptionKey)
 	eb := eventbus.New(reg, connMgr)
 
 	adapters := adapter.NewAdapterRegistry()
@@ -45,6 +47,13 @@ func main() {
 		Addr:        cfg.Server.Addr,
 		PollTimeout: cfg.Server.PollTimeout,
 	}, reg, connMgr, eb, adapters)
+
+	if cfg.WebUI.Enabled && cfg.WebUI.Password != "" {
+		authMgr := webui.NewAuthManager(cfg.WebUI.Username, cfg.WebUI.Password)
+		webuiHandler := webui.NewHandler(authMgr, reg, eb, true)
+		webuiHandler.RegisterRoutes(srv.Mux())
+		log.Printf("Web UI enabled at /web (user: %s)", cfg.WebUI.Username)
+	}
 
 	reg.StartHealthCheck()
 

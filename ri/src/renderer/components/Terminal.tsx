@@ -791,6 +791,52 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => clearTimeout(timer);
   }, [isActive, isVisible, xterm, fitAddon, terminalId, sessionId]);
 
+  // ResizeObserver to detect container size changes (for split panes, navigation collapse, etc.)
+  useEffect(() => {
+    if (!containerRef.current || !xterm || !fitAddon || !xtermInstance?.isOpened) return;
+    if (!isVisible) return;
+    
+    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    
+    const resizeObserver = new ResizeObserver((entries) => {
+      // Debounce resize to avoid excessive fit() calls during animations
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      
+      resizeTimeout = setTimeout(() => {
+        if (!xterm || !fitAddon) return;
+        
+        const entry = entries[0];
+        if (!entry) return;
+        
+        // Only fit if container has non-zero dimensions
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          try {
+            fitAddon.fit();
+            const { cols, rows } = xterm;
+            window.terminal.resize({ id: terminalId, cols, rows });
+            console.log(`[Terminal ${sessionId}/${terminalId}] ResizeObserver fit: ${cols}x${rows} (container: ${Math.round(width)}x${Math.round(height)})`);
+          } catch (e) {
+            console.error(`[Terminal ${sessionId}/${terminalId}] ResizeObserver fit failed:`, e);
+          }
+        }
+      }, 50);
+    });
+    
+    resizeObserver.observe(containerRef.current);
+    console.log(`[Terminal ${sessionId}/${terminalId}] ResizeObserver attached`);
+    
+    return () => {
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      resizeObserver.disconnect();
+      console.log(`[Terminal ${sessionId}/${terminalId}] ResizeObserver disconnected`);
+    };
+  }, [xterm, fitAddon, xtermInstance?.isOpened, isVisible, terminalId, sessionId]);
+
   useEffect(() => {
     if (!searchAddon) return;
     

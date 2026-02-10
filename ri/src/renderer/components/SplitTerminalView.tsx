@@ -133,6 +133,10 @@ const SplitTerminalView: React.FC<SplitTerminalViewProps> = ({
 
       setActiveTerminalId(newTerminalId);
       setSessionActiveTerminal(sessionId, newTerminalId);
+      
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
     } finally {
       setTimeout(() => {
         isSplittingRef.current = false;
@@ -221,6 +225,10 @@ const SplitTerminalView: React.FC<SplitTerminalViewProps> = ({
     dragStateRef.current = null;
     document.removeEventListener('mousemove', handleMouseMove as any);
     document.removeEventListener('mouseup', handleMouseUp as any);
+    
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
   };
 
   const stopDragging = useCallback(() => {

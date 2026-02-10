@@ -186,6 +186,7 @@ export interface Config {
     enabled: boolean;
     url: string;
     riID: string;
+    encryptionKey: string;
     pollTimeout: number;
     heartbeatInterval: number;
     reconnectInterval: number;

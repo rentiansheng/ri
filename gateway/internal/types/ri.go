@@ -1,8 +1,10 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
-// RIState represents the state of an RI from its own perspective.
 type RIState string
 
 const (
@@ -14,7 +16,6 @@ const (
 	RIStateDisconnected RIState = "DISCONNECTED"
 )
 
-// GatewayRIState represents the state of an RI from Gateway's perspective.
 type GatewayRIState string
 
 const (
@@ -24,7 +25,6 @@ const (
 	GatewayRIStateStale      GatewayRIState = "STALE"
 )
 
-// RIInfo holds registration and runtime information about a Remote Instance.
 type RIInfo struct {
 	ID             string            `json:"ri_id"`
 	Version        string            `json:"version"`
@@ -37,13 +37,46 @@ type RIInfo struct {
 	ConnectedAt   time.Time      `json:"connected_at"`
 	Load          float64        `json:"load"`
 	Inflight      int            `json:"inflight"`
+
+	RemoteConfig *RIRemoteConfig `json:"-"`
 }
 
-// RIRegistration is the payload for RI registration requests.
 type RIRegistration struct {
 	RIID           string            `json:"ri_id"`
 	Version        string            `json:"version"`
 	Capabilities   []string          `json:"capabilities"`
 	MaxConcurrency int               `json:"max_concurrency"`
 	Labels         map[string]string `json:"labels,omitempty"`
+	RemoteConfig   json.RawMessage   `json:"remote_config,omitempty"`
+}
+
+type EncryptedPayload struct {
+	Encrypted bool            `json:"encrypted"`
+	IV        string          `json:"iv,omitempty"`
+	AuthTag   string          `json:"authTag,omitempty"`
+	Data      json.RawMessage `json:"data"`
+}
+
+type RIRemoteConfig struct {
+	Discord      DiscordRemoteConfig      `json:"discord"`
+	Slack        SlackRemoteConfig        `json:"slack"`
+	Notification NotificationRemoteConfig `json:"notification"`
+}
+
+type DiscordRemoteConfig struct {
+	Enabled   bool   `json:"enabled"`
+	Token     string `json:"token"`
+	ChannelID string `json:"channelId"`
+}
+
+type SlackRemoteConfig struct {
+	Enabled   bool   `json:"enabled"`
+	Token     string `json:"token"`
+	ChannelID string `json:"channelId"`
+}
+
+type NotificationRemoteConfig struct {
+	Enabled   bool `json:"enabled"`
+	ShowAgent bool `json:"showAgent"`
+	Sound     bool `json:"sound"`
 }
