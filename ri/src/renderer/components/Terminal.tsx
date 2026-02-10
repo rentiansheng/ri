@@ -4,8 +4,57 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { useTerminalStore } from '../store/terminalStore';
 import { useXTermStore } from '../store/xtermStore';
 import { useUIEditStore } from '../store/uiEditStore';
+import { useNotifyStore } from '../store/notifyStore';
 import { useSplit } from '../contexts/SplitContext';
+import { nanoid } from 'nanoid';
 import 'xterm/css/xterm.css';
+
+const INTERACTIVE_PROMPT_PATTERNS = [
+  /\[Y\/n\]\s*$/i,
+  /\(y\/N\)\s*$/i,
+  /\(yes\/no\)\s*$/i,
+  /\[y\/n\]\s*$/i,
+  /Proceed\s*\?\s*\([yY]\/[nN]\)\s*$/,
+  /Continue\s*\?\s*\([yY]\/[nN]\)\s*$/,
+  /Overwrite\s*\?\s*\([yY]\/[nN]\)\s*$/,
+  /\?\s*\[[yY]\/[nN]\]\s*$/,
+];
+
+const SENSITIVE_PROMPT_PATTERNS = [
+  /password.*:/i,
+  /passphrase.*:/i,
+  /enter.*secret/i,
+];
+
+interface PromptDetectionResult {
+  isPrompt: boolean;
+  isSensitive: boolean;
+  promptText: string;
+}
+
+const detectInteractivePrompt = (text: string): PromptDetectionResult => {
+  const lines = text.split('\n');
+  const lastLine = lines[lines.length - 1] || '';
+  const trimmed = lastLine.trim();
+  
+  if (trimmed.length > 200) {
+    return { isPrompt: false, isSensitive: false, promptText: '' };
+  }
+
+  for (const pattern of SENSITIVE_PROMPT_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { isPrompt: true, isSensitive: true, promptText: trimmed };
+    }
+  }
+
+  for (const pattern of INTERACTIVE_PROMPT_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { isPrompt: true, isSensitive: false, promptText: trimmed };
+    }
+  }
+
+  return { isPrompt: false, isSensitive: false, promptText: '' };
+};
 
 // ============================================================
 // 全局输出缓存
@@ -508,10 +557,11 @@ const Terminal: React.FC<TerminalProps> = ({
 
     console.log(`[Terminal ${sessionId}] Setting up PTY data listener`);
     
-    // 监听 PTY 输出
+    let lastPromptTime = 0;
+    const PROMPT_COOLDOWN_MS = 3000;
+    
     const unsubscribeData = window.terminal.onData((payload: { id: string; data: string }) => {
       if (payload.id === terminalId && xterm) {
-        // RIName 功能：检测 PTY 回显中的 RIName="xxx" 命令
         if (payload.data.includes('RIName=')) {
           const riNameMatch = payload.data.match(/RIName=["']([^"']+)["']/);
           if (riNameMatch) {
@@ -522,22 +572,50 @@ const Terminal: React.FC<TerminalProps> = ({
           }
         }
         
-        // 直接写入 xterm
         xterm.write(payload.data);
         
-        // 数据写入后，同步 textarea 位置
         requestAnimationFrame(() => syncInputPosition());
         
-        // 缓存输出
         const cache = outputCache.get(terminalId) || [];
         cache.push({ data: payload.data, timestamp: Date.now() });
         outputCache.set(terminalId, cache);
         
-        // 更新活跃时间
         const now = Date.now();
         if (now - lastUpdateTimeRef.current > 5000) {
           updateLastActivityTime(sessionId);
           lastUpdateTimeRef.current = now;
+        }
+        
+        if (now - lastPromptTime > PROMPT_COOLDOWN_MS) {
+          const recentOutput = cache
+            .filter(e => now - e.timestamp < 1000)
+            .map(e => e.data)
+            .join('');
+          
+          const detection = detectInteractivePrompt(recentOutput);
+          
+          if (detection.isPrompt && !detection.isSensitive) {
+            lastPromptTime = now;
+            
+            const session = useTerminalStore.getState().sessions.find(s => s.id === sessionId);
+            const sessionName = session?.name || 'Terminal';
+            
+            const notifyStore = useNotifyStore.getState();
+            notifyStore.addNotification({
+              id: nanoid(),
+              sessionId,
+              sessionName,
+              title: 'Interactive Prompt',
+              body: detection.promptText.slice(0, 100),
+              type: 'warning',
+              timestamp: now,
+              read: false,
+              actions: [
+                { label: 'Yes', keystroke: 'y\n', terminalId },
+                { label: 'No', keystroke: 'n\n', terminalId },
+              ],
+            });
+          }
         }
       }
     });
@@ -838,6 +916,47 @@ const Terminal: React.FC<TerminalProps> = ({
       console.log(`[Terminal ${sessionId}/${terminalId}] ResizeObserver disconnected`);
     };
   }, [xterm, fitAddon, xtermInstance?.isOpened, isVisible, terminalId, sessionId]);
+
+  // Window resize listener for multi-monitor DPI changes
+  useEffect(() => {
+    if (!xterm || !fitAddon || !xtermInstance?.isOpened || !isVisible) return;
+    
+    let resizeDebounce: ReturnType<typeof setTimeout> | null = null;
+    
+    const doFit = () => {
+      if (!xterm || !fitAddon || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        try {
+          fitAddon.fit();
+          const { cols, rows } = xterm;
+          window.terminal.resize({ id: terminalId, cols, rows });
+        } catch {
+          // fit() can fail if terminal is in transition state
+        }
+      }
+    };
+    
+    const handleWindowResize = () => {
+      if (resizeDebounce) clearTimeout(resizeDebounce);
+      resizeDebounce = setTimeout(doFit, 100);
+    };
+    
+    // Listen for DPI changes (moving between monitors with different scaling)
+    const dpiMediaQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    const handleDpiChange = () => {
+      setTimeout(doFit, 150);
+    };
+    
+    window.addEventListener('resize', handleWindowResize);
+    dpiMediaQuery.addEventListener('change', handleDpiChange);
+    
+    return () => {
+      if (resizeDebounce) clearTimeout(resizeDebounce);
+      window.removeEventListener('resize', handleWindowResize);
+      dpiMediaQuery.removeEventListener('change', handleDpiChange);
+    };
+  }, [xterm, fitAddon, xtermInstance?.isOpened, isVisible, terminalId]);
 
   useEffect(() => {
     if (!searchAddon) return;

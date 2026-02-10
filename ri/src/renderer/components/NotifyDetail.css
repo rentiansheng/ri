@@ -222,3 +222,38 @@
 .notify-detail-item-error.unread {
   border-left-color: #f48771;
 }
+
+.notify-detail-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.notify-detail-action-btn {
+  background: #37373d;
+  color: #d4d4d4;
+  border: 1px solid #555;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notify-detail-action-btn:hover {
+  background: #007acc;
+  border-color: #007acc;
+  color: white;
+}
+
+.notify-detail-action-btn:first-child {
+  background: #4ec9b0;
+  border-color: #4ec9b0;
+  color: #1e1e1e;
+}
+
+.notify-detail-action-btn:first-child:hover {
+  background: #3db89a;
+  border-color: #3db89a;
+}

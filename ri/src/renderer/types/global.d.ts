@@ -239,6 +239,12 @@ export interface NotificationPayload {
   sessionName?: string;  // Optional, will be added by caller if available
 }
 
+export interface NotificationAction {
+  label: string;
+  keystroke: string;
+  terminalId?: string;
+}
+
 export interface NotificationItem {
   id: string;
   sessionId: string;
@@ -249,6 +255,7 @@ export interface NotificationItem {
   icon?: string;
   timestamp: number;
   read: boolean;
+  actions?: NotificationAction[];
 }
 
 export interface NotificationGroup {
@@ -576,7 +583,12 @@ declare global {
     opencodePlugin: OpencodePluginAPI;
     remoteControl: RemoteControlAPI;
     gateway: GatewayAPI;
+    app: AppAPI;
   }
+}
+
+interface AppAPI {
+  onNewSession: (callback: () => void) => () => void;
 }
 
 export {};

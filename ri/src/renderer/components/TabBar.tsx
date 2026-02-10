@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTerminalStore, Tab, AIToolState } from '../store/terminalStore';
 import { useNotifyStore } from '../store/notifyStore';
 import { useUIEditStore } from '../store/uiEditStore';
 import { NotificationType } from '../types/global';
 import './TabBar.css';
 
-// Helper function to get AI tool status icon
 const getAIStatusIcon = (status: AIToolState['status'] | undefined) => {
   if (!status || status === 'idle') return null;
   
@@ -32,6 +31,8 @@ export const TabBar: React.FC = () => {
     reorderTabsNew,
     sessions,
     renameSession,
+    getFileBuffer,
+    clearFileBuffer,
   } = useTerminalStore();
   
   const notifyStore = useNotifyStore();
@@ -49,23 +50,59 @@ export const TabBar: React.FC = () => {
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleTabClick = (tabId: string, isEditingThis: boolean) => {
-    // 如果正在编辑这个 tab，不要切换
+  const checkUnsavedAndPrompt = useCallback(async (tab: Tab | undefined): Promise<'save' | 'discard' | 'cancel'> => {
+    if (!tab || tab.type !== 'file' || !tab.filePath) {
+      return 'discard';
+    }
+    
+    const buffer = getFileBuffer(tab.filePath);
+    if (!buffer) {
+      return 'discard';
+    }
+
+    const result = window.confirm(
+      `"${tab.title}" has unsaved changes.\n\nClick OK to discard changes, or Cancel to go back.`
+    );
+    
+    if (result) {
+      clearFileBuffer(tab.filePath);
+      return 'discard';
+    }
+    return 'cancel';
+  }, [getFileBuffer, clearFileBuffer]);
+
+  const handleTabClick = async (tabId: string, isEditingThis: boolean) => {
     if (isEditingThis) {
       return;
     }
     
+    const currentTab = tabs.find(t => t.id === activeTabId);
+    if (currentTab && currentTab.id !== tabId && currentTab.type === 'file' && currentTab.filePath) {
+      const decision = await checkUnsavedAndPrompt(currentTab);
+      if (decision === 'cancel') {
+        return;
+      }
+    }
+    
     setActiveTab(tabId);
     
-    // Clear notifications for this session when switching to terminal tab
     const tab = tabs.find(t => t.id === tabId);
     if (tab?.type === 'terminal' && tab.sessionId) {
       notifyStore.clearSession(tab.sessionId);
     }
   };
 
-  const handleCloseTab = (e: React.MouseEvent, tabId: string) => {
-    e.stopPropagation(); // Prevent tab activation when closing
+  const handleCloseTab = async (e: React.MouseEvent, tabId: string) => {
+    e.stopPropagation();
+    
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab && tab.type === 'file' && tab.filePath) {
+      const decision = await checkUnsavedAndPrompt(tab);
+      if (decision === 'cancel') {
+        return;
+      }
+    }
+    
     closeTabById(tabId);
   };
 

@@ -93,6 +93,14 @@ function App() {
     loadConfigs();
   }, [loadConfig, setTerminalConfig]);
   
+  // Listen for Cmd+N / Ctrl+N from menu
+  useEffect(() => {
+    const unsubscribe = window.app.onNewSession(() => {
+      createSession();
+    });
+    return unsubscribe;
+  }, [createSession]);
+  
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {

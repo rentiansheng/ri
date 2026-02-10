@@ -784,3 +784,57 @@
   background: #333;
   color: #ccc;
 }
+
+/* Mermaid diagram styles */
+.mermaid-diagram {
+  background: #1e1e1e;
+  padding: 16px;
+  border-radius: 6px;
+  margin: 12px 0;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-loading {
+  color: #888;
+  padding: 16px;
+  text-align: center;
+  font-style: italic;
+}
+
+.mermaid-error {
+  background: #2d1f1f;
+  border: 1px solid #5a3030;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.mermaid-error-title {
+  color: #f48771;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mermaid-error-message {
+  color: #f48771;
+  font-size: 12px;
+  margin: 0 0 8px 0;
+  white-space: pre-wrap;
+}
+
+.mermaid-error-code {
+  color: #888;
+  font-size: 11px;
+  background: #1e1e1e;
+  padding: 8px;
+  border-radius: 4px;
+  margin: 0;
+  overflow-x: auto;
+}

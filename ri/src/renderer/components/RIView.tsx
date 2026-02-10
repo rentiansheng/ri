@@ -7,13 +7,15 @@ import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-bash';
-import 'prismjs/components/prism-markup'; // For XML
+import 'prismjs/components/prism-markup';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import YAML from 'yaml';
+import mermaid from 'mermaid';
 import { useConfigStore } from '../store/configStore';
+import { useTerminalStore } from '../store/terminalStore';
 import './RIView.css';
-import './FileViewer.css'; // Reuse markdown styles
+import './FileViewer.css';
 
 interface JsonViewProps {
   src: object;
@@ -111,6 +113,65 @@ const formatXml = (xml: string): string => {
   }
 };
 
+// Initialize mermaid with dark theme
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+  fontFamily: 'Consolas, monospace',
+});
+
+// Mermaid renderer component for code blocks
+const MermaidRenderer: React.FC<{ code: string }> = ({ code }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const renderDiagram = async () => {
+      try {
+        // Generate unique ID for this diagram
+        const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const { svg: renderedSvg } = await mermaid.render(id, code);
+        if (isMounted) {
+          setSvg(renderedSvg);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to render mermaid diagram');
+          setSvg('');
+        }
+      }
+    };
+    renderDiagram();
+    return () => { isMounted = false; };
+  }, [code]);
+
+  if (error) {
+    return (
+      <div className="mermaid-error">
+        <div className="mermaid-error-title">⚠️ Mermaid Error</div>
+        <pre className="mermaid-error-message">{error}</pre>
+        <pre className="mermaid-error-code">{code}</pre>
+      </div>
+    );
+  }
+
+  if (!svg) {
+    return <div className="mermaid-loading">Rendering diagram...</div>;
+  }
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="mermaid-diagram" 
+      dangerouslySetInnerHTML={{ __html: svg }} 
+    />
+  );
+};
+
 const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -150,6 +211,10 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
   const lastScrollSource = useRef<'editor' | 'preview' | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bufferSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialBufferRestored = useRef(false);
+
+  const { setFileBuffer, getFileBuffer, clearFileBuffer } = useTerminalStore();
 
   const config = useConfigStore(state => state.config);
   const editorConfig = config?.editor;
@@ -321,6 +386,7 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
       setStatusMsg('Loading...');
       setStatusType('info');
       setFileChangedExternally(false);
+      initialBufferRestored.current = false;
       try {
         const [readResult, statResult] = await Promise.all([
           window.file.read(filePath),
@@ -328,11 +394,25 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
         ]);
         
         if (readResult.success && readResult.content !== undefined) {
-          setContent(readResult.content);
-          setOriginalContent(readResult.content);
+          const fileContent = readResult.content;
+          setOriginalContent(fileContent);
+          
+          const savedBuffer = getFileBuffer(filePath);
+          if (savedBuffer && savedBuffer.content !== fileContent) {
+            setContent(savedBuffer.content);
+            initialBufferRestored.current = true;
+            setStatusMsg('Restored unsaved changes');
+            setStatusType('warning');
+          } else {
+            setContent(fileContent);
+            if (savedBuffer) {
+              clearFileBuffer(filePath);
+            }
+            setStatusMsg('Ready');
+          }
+          
           setUndoStack([]);
           setRedoStack([]);
-          setStatusMsg('Ready');
           
           if (statResult.success && statResult.stat) {
             setLastMtime(statResult.stat.mtime);
@@ -355,7 +435,7 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
       }
     };
     loadFile();
-  }, [filePath]);
+  }, [filePath, getFileBuffer, clearFileBuffer]);
 
   // Sync scroll between editor and preview
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -395,6 +475,7 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
       if (result.success) {
         setOriginalContent(content);
         setFileChangedExternally(false);
+        clearFileBuffer(filePath);
         setStatusMsg('Saved');
         setStatusType('success');
         
@@ -611,6 +692,48 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
       }
     };
   }, [content, originalContent, autoSaveEnabled, autoSaveDelay]);
+
+  useEffect(() => {
+    const isDirty = content !== originalContent;
+    
+    if (!isDirty) {
+      if (bufferSaveTimerRef.current) {
+        clearTimeout(bufferSaveTimerRef.current);
+      }
+      return;
+    }
+
+    if (bufferSaveTimerRef.current) {
+      clearTimeout(bufferSaveTimerRef.current);
+    }
+
+    bufferSaveTimerRef.current = setTimeout(() => {
+      setFileBuffer(filePath, content);
+    }, 500);
+
+    return () => {
+      if (bufferSaveTimerRef.current) {
+        clearTimeout(bufferSaveTimerRef.current);
+      }
+    };
+  }, [content, originalContent, filePath, setFileBuffer]);
+
+  const handleBlur = useCallback(async () => {
+    const isDirty = content !== originalContent;
+    if (!isDirty) return;
+    
+    if (autoSaveEnabled) {
+      try {
+        const statResult = await window.file.stat(filePath);
+        if (statResult.success && statResult.stat) {
+          if (statResult.stat.mtime <= lastMtime) {
+            await handleSave();
+          }
+        }
+      } catch {
+      }
+    }
+  }, [content, originalContent, autoSaveEnabled, filePath, lastMtime]);
 
   const setContentAndRestoreScroll = useCallback((newContent: string, cursorStart: number, cursorEnd: number) => {
     const scrollTop = editorRef.current?.scrollTop || 0;
@@ -1151,6 +1274,7 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
           onScroll={handleScroll}
           onSelect={updateCursorPosition}
           onClick={updateCursorPosition}
+          onBlur={handleBlur}
           onCompositionStart={() => { isComposing.current = true; }}
           onCompositionEnd={() => { isComposing.current = false; }}
           spellCheck={false}
@@ -1295,6 +1419,11 @@ const RIView: React.FC<RIViewProps> = ({ filePath, onClose }) => {
                 const match = /language-(\w+)/.exec(className || '');
                 const lang = match ? match[1] : '';
                 const codeString = String(children).replace(/\n$/, '');
+                
+                if (lang === 'mermaid') {
+                  return <MermaidRenderer code={codeString} />;
+                }
+                
                 if (match && lang && Prism.languages[lang]) {
                     try {
                         return <code className={className} dangerouslySetInnerHTML={{ __html: Prism.highlight(codeString, Prism.languages[lang], lang) }} {...props} />;

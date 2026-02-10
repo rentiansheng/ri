@@ -190,3 +190,11 @@ contextBridge.exposeInMainWorld('gateway', {
   },
 });
 
+contextBridge.exposeInMainWorld('app', {
+  onNewSession: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('new-session', handler);
+    return () => ipcRenderer.removeListener('new-session', handler);
+  },
+});
+

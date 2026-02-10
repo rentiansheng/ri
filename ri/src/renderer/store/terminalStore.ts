@@ -47,6 +47,12 @@ export interface SplitPane {
 export type SessionLayouts = Record<string, SplitPane>;
 export type SessionActiveTerminals = Record<string, string>;
 
+// File buffer entry for unsaved content
+export interface FileBuffer {
+  content: string;
+  updatedAt: number;
+}
+
 interface TerminalStore {
   sessions: Session[];
   
@@ -61,6 +67,12 @@ interface TerminalStore {
   // Legacy - keeping for compatibility
   visibleSessionIds: string[];  // Tab Bar 中显示的 Session IDs（按打开顺序）
   activeSessionId: string | null;  // 当前激活的 Session ID
+  
+  // File buffers for unsaved content (keyed by filePath)
+  fileBuffers: Record<string, FileBuffer>;
+  setFileBuffer: (filePath: string, content: string) => void;
+  getFileBuffer: (filePath: string) => FileBuffer | null;
+  clearFileBuffer: (filePath: string) => void;
   
   createSession: (name?: string, options?: { cwd?: string; commands?: string[] }) => Promise<void>;
   deleteSession: (id: string) => void;
@@ -98,6 +110,28 @@ interface TerminalStore {
   ensureSessionHasTerminal: (sessionId: string) => Promise<void>;
 }
 
+const FILE_BUFFERS_STORAGE_KEY = 'ri-file-buffers';
+
+const loadFileBuffersFromStorage = (): Record<string, FileBuffer> => {
+  try {
+    const stored = localStorage.getItem(FILE_BUFFERS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load file buffers from localStorage:', e);
+  }
+  return {};
+};
+
+const saveFileBuffersToStorage = (buffers: Record<string, FileBuffer>) => {
+  try {
+    localStorage.setItem(FILE_BUFFERS_STORAGE_KEY, JSON.stringify(buffers));
+  } catch (e) {
+    console.error('Failed to save file buffers to localStorage:', e);
+  }
+};
+
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
   sessions: [],
   tabs: [],
@@ -106,6 +140,30 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   sessionActiveTerminals: {},
   visibleSessionIds: [],
   activeSessionId: null,
+
+  fileBuffers: loadFileBuffersFromStorage(),
+  setFileBuffer: (filePath: string, content: string) => {
+    set((state) => {
+      const newBuffers = {
+        ...state.fileBuffers,
+        [filePath]: { content, updatedAt: Date.now() }
+      };
+      saveFileBuffersToStorage(newBuffers);
+      return { fileBuffers: newBuffers };
+    });
+  },
+  getFileBuffer: (filePath: string) => {
+    const fb = get().fileBuffers[filePath];
+    return fb || null;
+  },
+  clearFileBuffer: (filePath: string) => {
+    set((state) => {
+      const next = { ...state.fileBuffers };
+      delete next[filePath];
+      saveFileBuffersToStorage(next);
+      return { fileBuffers: next };
+    });
+  },
   
   createSession: async (name?: string, options?: { cwd?: string; commands?: string[] }) => {
     try {

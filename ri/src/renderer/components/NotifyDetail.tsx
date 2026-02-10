@@ -2,7 +2,7 @@ import React from 'react';
 import { useTerminalStore } from '../store/terminalStore';
 import { useNotifyStore } from '../store/notifyStore';
 import { formatRelativeTime } from '../utils/timeFormat';
-import { NotificationType } from '../types/global';
+import { NotificationType, NotificationAction } from '../types/global';
 import './NotifyDetail.css';
 
 interface NotifyDetailProps {
@@ -47,6 +47,13 @@ const NotifyDetail: React.FC<NotifyDetailProps> = ({ sessionId }) => {
 
   const handleClearSession = async () => {
     await window.notification.clear(sessionId);
+  };
+
+  const handleActionClick = (action: NotificationAction, notificationId: string) => {
+    if (action.terminalId) {
+      window.terminal.write({ id: action.terminalId, data: action.keystroke });
+      notifyStore.removeNotification(sessionId, notificationId);
+    }
   };
 
   const getNotificationIcon = (type: NotificationType) => {
@@ -117,6 +124,19 @@ const NotifyDetail: React.FC<NotifyDetailProps> = ({ sessionId }) => {
                   </span>
                 </div>
                 <p className="notify-detail-item-message">{notification.body}</p>
+                {notification.actions && notification.actions.length > 0 && (
+                  <div className="notify-detail-item-actions">
+                    {notification.actions.map((action, idx) => (
+                      <button
+                        key={idx}
+                        className="notify-detail-action-btn"
+                        onClick={() => handleActionClick(action, notification.id)}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
