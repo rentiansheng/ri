@@ -42,9 +42,8 @@ config.json
 *.old.*
 *.backup
 
-# Go module files (if not needed)
-go.mod
-go.sum
+# Go binary outputs
+bin/
 
 # Personal scripts with sensitive info
 start-optimized.sh
