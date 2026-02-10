@@ -272,8 +272,9 @@ const Terminal: React.FC<TerminalProps> = ({
       
       const key = e.key;
       
-      // Enter
+      // Enter - skip if IME is composing (let IME confirm the input)
       if (key === 'Enter') {
+        if (isComposingRef.current) return; // Let IME handle it
         e.preventDefault();
         sendToPty('\r');
         return;

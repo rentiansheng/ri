@@ -222,6 +222,9 @@ const TerminalSettings: React.FC = () => {
         setConfig(result.config);
         showMessage('success', '终端设置已保存并应用');
         
+        // 更新 xtermStore 配置（用于新建终端）
+        useXTermStore.getState().setTerminalConfig(result.config.terminal);
+        
         // 应用配置到现有终端
         applyConfigToTerminals(result.config.terminal);
       } else {

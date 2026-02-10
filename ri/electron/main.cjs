@@ -94,6 +94,12 @@ configManager.on('config-changed', (newConfig) => {
     notificationManager.updateConfig(newConfig);
     console.log('[Main] Notification config updated');
   }
+  
+  // Send config change event to renderer
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('config:changed', newConfig);
+    console.log('[Main] Config change sent to renderer');
+  }
 });
 
 // ------------------ IPC: File Operations ------------------

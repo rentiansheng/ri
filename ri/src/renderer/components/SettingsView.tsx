@@ -171,6 +171,7 @@ const SettingsView: React.FC = () => {
       const result = await window.config.update(updatedConfig);
       if (result.success) {
         setConfig(result.config);
+        useConfigStore.getState().loadConfig();
         showMessage('success', 'Settings saved successfully');
       } else {
         showMessage('error', result.error || 'Failed to save settings');
