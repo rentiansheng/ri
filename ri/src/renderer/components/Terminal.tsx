@@ -386,7 +386,9 @@ const Terminal: React.FC<TerminalProps> = ({
         if (key === 'v' || key === 'V') {
           e.preventDefault();
           navigator.clipboard.readText().then(text => {
-            if (text) sendToPty(text);
+            if (text) {
+              sendToPty('\x1b[200~' + text + '\x1b[201~');
+            }
           }).catch(err => {
             console.error('[Terminal] Paste failed:', err);
           });
@@ -464,7 +466,7 @@ const Terminal: React.FC<TerminalProps> = ({
       try {
         const text = await navigator.clipboard.readText();
         if (text) {
-          sendToPty(text);
+          sendToPty('\x1b[200~' + text + '\x1b[201~');
         }
       } catch (err) {
         console.error('[Terminal] Paste failed:', err);
@@ -1030,7 +1032,7 @@ const Terminal: React.FC<TerminalProps> = ({
       const text = await navigator.clipboard.readText();
       console.log('[Terminal] handlePaste called, text length:', text?.length);
       if (text) {
-        sendToPty(text);
+        sendToPty('\x1b[200~' + text + '\x1b[201~');
       }
     } catch (err) {
       console.error('[Terminal] Paste failed:', err);
@@ -1046,7 +1048,7 @@ const Terminal: React.FC<TerminalProps> = ({
       const text = e.clipboardData?.getData('text') || await navigator.clipboard.readText();
       console.log('[Terminal] Wrapper paste, text length:', text?.length);
       if (text) {
-        sendToPty(text);
+        sendToPty('\x1b[200~' + text + '\x1b[201~');
       }
     } catch (err) {
       console.error('[Terminal] Wrapper paste failed:', err);
